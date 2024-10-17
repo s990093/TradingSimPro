@@ -58,11 +58,3 @@
 ## Contributing
 
 We welcome contributions from the community! If you'd like to help improve TradingSimPro, please feel free to submit pull requests, report issues, or suggest new features.
-
-## License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
-
-Start simulating your trading strategies today with **TradingSimPro** and take your trading to the next level!
