@@ -8,4 +8,4 @@ class StochasticOscillatorStrategy(BaseStrategy):
         df['k'], df['d'] = ta.STOCH(df['High'], df['Low'], df['Close'])
         df['stochastic_signal'] = np.where(df['k'] > df['d'], 1, -1)
         df['stochastic_positions'] = df['stochastic_signal'].diff()
-        return df
+        return df['stochastic_signal'] 

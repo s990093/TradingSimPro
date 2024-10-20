@@ -11,6 +11,8 @@ class MovingAverageStrategy(BaseStrategy):
         df['short_ma'] = ta.SMA(df['Close'], timeperiod=self.short_window)
         df['long_ma'] = ta.SMA(df['Close'], timeperiod=self.long_window)
         df['ma_signal'] = 0
-        df['ma_signal'][self.short_window:] = np.where(df['short_ma'][self.short_window:] > df['long_ma'][self.short_window:], 1, 0)
+        df.iloc[self.short_window:, df.columns.get_loc('ma_signal')] = np.where(
+            df['short_ma'].iloc[self.short_window:] > df['long_ma'].iloc[self.short_window:], 1, 0
+        )
         df['ma_positions'] = df['ma_signal'].diff()
-        return df
+        return df['ma_signal']

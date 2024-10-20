@@ -10,6 +10,8 @@ class RSIStrategy(BaseStrategy):
 
     def apply_strategy(self, df):
         df['RSI'] = ta.RSI(df['Close'], timeperiod=self.rsi_period)
-        df['rsi_signal'] = np.where(df['RSI'] < self.oversold, 1, np.where(df['RSI'] > self.overbought, -1, 0))
+        df['rsi_signal'] = np.where(df['RSI'] > self.overbought, self.TradingSignals.SELL
+                                    , np.where(df['RSI'] < self.oversold, self.TradingSignals.BUY, self.TradingSignals.HOLD)) 
+        
         df['rsi_positions'] = df['rsi_signal'].diff()
-        return df
+        return df['rsi_signal']

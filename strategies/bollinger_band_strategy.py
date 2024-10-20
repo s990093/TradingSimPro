@@ -13,6 +13,14 @@ class BollingerBandsStrategy(BaseStrategy):
         df['std_dev'] = df['Close'].rolling(self.window).std()
         df['upper_band'] = df['middle_band'] + (df['std_dev'] * self.no_of_std)
         df['lower_band'] = df['middle_band'] - (df['std_dev'] * self.no_of_std)
-        df['bb_signal'] = np.where(df['Close'] < df['lower_band'], 1, np.where(df['Close'] > df['upper_band'], -1, 0))
-        df['bb_positions'] = df['bb_signal'].diff()
-        return df
+        
+        # 使用 TradingSignals 类中的信号常量来替代数字
+        df['bb_signal'] = np.where(df['Close'] < df['lower_band'], 
+                                   self.TradingSignals.BUY, 
+                                   np.where(df['Close'] > df['upper_band'], 
+                                            self.TradingSignals.SELL, 
+                                            self.TradingSignals.HOLD))
+        
+        
+        df['bb_positions'] = df['bb_signal'].diff() 
+        return df['bb_signal']

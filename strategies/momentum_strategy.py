@@ -10,4 +10,6 @@ class MomentumStrategy(BaseStrategy):
         df['momentum'] = df['Close'].diff(self.window)
         df['momentum_signal'] = np.where(df['momentum'] > 0, 1, 0)
         df['momentum_positions'] = df['momentum_signal'].diff()
-        return df
+        
+        
+        return df['momentum_signal']
