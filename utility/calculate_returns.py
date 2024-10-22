@@ -5,6 +5,9 @@ import pandas as pd
 from rich.progress import Progress
 import threading
 
+from ENV import Environment
+from utility.func import adjust_weights
+
 def calculate_returns(buy_signals, sell_signals, df, stop_loss_pct=0.02, take_profit_pct=0.05):
     total_return = 0.0
     holding = False
@@ -62,9 +65,17 @@ def calculate_returns(buy_signals, sell_signals, df, stop_loss_pct=0.02, take_pr
 
 
 def calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data):
+  
     if len(weights) != len(signal_columns):
             raise ValueError("The number of weights must match the number of signals.")
-
+        
+    # new_weight =  adjust_weights(weights, 
+    #                Environment.adjust_weights.get("signal_name"), 
+    #                Environment.adjust_weights.get("adjustment_factor"), 
+    #                signal_columns
+    #             )
+    
+    # weights = new_weight
     # Create the weighted signals array dynamically
     weighted_signals = np.array([
         weights[i] * df_strategy[signal] for i, signal in enumerate(signal_columns) if signal in df_strategy.columns

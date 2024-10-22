@@ -1,73 +1,72 @@
-import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
 import yfinance as yf
 
-def plot_trades(df, trades_df, total_return, initial_capital ,market_df):
-    plt.figure(figsize=(14, 7))
+# 获取股票数据
+def get_stock_data(tickers, start, end):
+    data = {}
+    for ticker in tickers:
+        data[ticker] = yf.download(ticker, start=start, end=end)['Close']
+    return pd.DataFrame(data)
 
-    # 下载 S&P 500 数据
-    market_df['Close'].fillna(method='ffill', inplace=True)
+# 定义策略信号（示例）
+def strategy_signals(data, ma_length):
+    signals = {}
+    signals['A'] = (data['AAPL'].rolling(window=ma_length).mean().shift(1) < data['AAPL']).astype(int)  # 策略 A
+    signals['B'] = (data['MSFT'].rolling(window=ma_length).mean().shift(1) < data['MSFT']).astype(int)  # 策略 B
+    signals['C'] = (data['GOOGL'].rolling(window=ma_length).mean().shift(1) < data['GOOGL']).astype(int)  # 策略 C
+    return pd.DataFrame(signals)
 
-    # 计算 S&P 500 的持仓曲线（按比例调整）
-    market_df['Position Value'] = (market_df['Close'] / market_df['Close'].iloc[0]) * initial_capital
+# 计算组合信号
+def combine_signals(signals, logic='AND'):
+    if logic == 'AND':
+        return signals.prod(axis=1)  # 所有策略同时发出信号
+    elif logic == 'OR':
+        return (signals.sum(axis=1) > 0).astype(int)  # 任意策略发出信号
 
-    # 绘制收盘价
-    plt.subplot(3, 1, 1)
-    plt.plot(df['Close'], label='Close Price', alpha=0.5)
-    
-    # 绘制买入和卖出信号
-    buy_signals = trades_df[trades_df['Action'] == 'Buy']
-    sell_signals = trades_df[trades_df['Action'] == 'Sell']
+# 评估适应度
+def evaluate_fitness(ma_length, data):
+    signals = strategy_signals(data, ma_length)
+    combined_signal = combine_signals(signals, logic='AND')
+    returns = data.pct_change().shift(-1)
+    strategy_returns = combined_signal * returns
+    total_return = strategy_returns.sum()
+    return total_return
 
-    plt.scatter(buy_signals['Date'], buy_signals['Price'], marker='^', color='g', label='Buy Signal', s=20, zorder=5)
-    plt.scatter(sell_signals['Date'], sell_signals['Price'], marker='v', color='r', label='Sell Signal', s=20, zorder=5)
+# ABC算法实现
+def abc_algorithm(data, num_food_sources=10, iterations=100):
+    # 初始化蜜蜂的位置
+    food_sources = np.random.randint(5, 50, size=(num_food_sources, 1))  # 假设移动平均线的长度范围
+    fitness = np.zeros(num_food_sources)
 
-    # 图表标题和标签
-    plt.title(f'Total Return: {total_return:.2f} | Initial Capital: ${initial_capital}', fontsize=16)
-    plt.xlabel('Date', fontsize=14)
-    plt.ylabel('Price', fontsize=14)
-    plt.legend()
-    plt.grid()
+    for iteration in range(iterations):
+        for i in range(num_food_sources):
+                fitness[i] = evaluate_fitness(food_sources[i, 0], data)
 
-    # 计算每笔交易的收益并且计算累积收益
-    trades_df['Profit'] = trades_df['Price'].diff().fillna(0)  # 每笔交易的利润
-    trades_df['Cumulative Profit'] = trades_df['Profit'].cumsum() + initial_capital  # 累计收益基于初始资本
+        # 更新蜜蜂位置
+        for i in range(num_food_sources):
+            new_position = food_sources[i, 0] + np.random.randint(-1, 2)  # 随机调整
+            if 5 <= new_position <= 50:
+                new_fitness = evaluate_fitness(new_position, data)
+                if new_fitness > fitness[i]:
+                    food_sources[i, 0] = new_position
 
-    # 确保buy_signals和sell_signals包括'Cumulative Profit'列
-    buy_signals = trades_df[trades_df['Action'] == 'Buy'].copy()
-    sell_signals = trades_df[trades_df['Action'] == 'Sell'].copy()
+    # 返回最佳参数
+    best_index = np.argmax(fitness)
+    return food_sources[best_index, 0]
 
-    # 绘制累计收益
-    plt.subplot(3, 1, 2)
-    plt.plot(trades_df['Date'], trades_df['Cumulative Profit'], label='Strategy Cumulative Profit')
-    plt.axhline(initial_capital, color='black', lw=1, ls='--', label='Initial Capital')  # 初始资金线
+# 示例调用
+tickers = ['AAPL', 'MSFT', 'GOOGL']
+data = get_stock_data(tickers, start='2020-01-01', end='2023-01-01')
 
-    # 添加买入和卖出交易符号
-    plt.scatter(buy_signals['Date'], buy_signals['Cumulative Profit'], color='g', marker='^', s=20, label='Buy Trades')  # 买入交易标记
-    plt.scatter(sell_signals['Date'], sell_signals['Cumulative Profit'], color='r', marker='v', s=20, label='Sell Trades')  # 卖出交易标记
+# 使用 ABC 算法找到最佳移动平均线长度
+best_ma_length = abc_algorithm(data)
+print("最佳移动平均线长度:", best_ma_length)
 
-    # 图表标题和标签
-    plt.title('Cumulative Profit Over Time', fontsize=16)
-    plt.xlabel('Date', fontsize=14)
-    plt.ylabel('Cumulative Profit (with initial capital)', fontsize=14)
+# 使用最佳参数计算最终信号
+final_signals = strategy_signals(data, best_ma_length)
+final_combined_signal = combine_signals(final_signals, logic='AND')
 
-    plt.legend()
-    plt.grid()
-
-    # 绘制与 S&P 500 比较
-    plt.subplot(3, 1, 3)
-    plt.plot(market_df.index, market_df['Position Value'], label='S&P 500 Position Value', color='blue', linestyle='--')
-    plt.plot(trades_df['Date'], trades_df['Cumulative Profit'], label='Strategy Cumulative Profit', color='orange')
-    plt.axhline(initial_capital, color='black', lw=1, ls='--', label='Initial Capital')
-
-    plt.title('Comparison with S&P 500', fontsize=16)
-    plt.xlabel('Date', fontsize=14)
-    plt.ylabel('Value (with initial capital)', fontsize=14)
-    
-    plt.legend()
-    plt.grid()
-
-    plt.tight_layout()  # 调整布局
-    plt.show()
-
-    # 保存图像
-    plt.savefig("trading_results_vs_market.png", format='png')
+# 计算最终收益
+final_returns = data.pct_change().shift(-1) * final_combined_signal
+print("最终收益:", final_returns.sum())

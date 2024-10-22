@@ -3,7 +3,7 @@ import numpy as np
 from .base_strategy import BaseStrategy
 
 
-class BollingerBandsStrategy(BaseStrategy):
+class BollingerBandsStrategy(BaseStrategy): 
     def __init__(self, window=20, no_of_std=2):
         self.window = window
         self.no_of_std = no_of_std

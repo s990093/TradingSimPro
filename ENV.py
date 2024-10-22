@@ -5,28 +5,78 @@ from rich.console import Console
 from rich.table import Table
 from rich.panel import Panel
 
+
 class Environment(object):
     MAX_THREAD_WORKERS = 30
     MAX_PROCESS_WORKERS = 30
     target_stock = "AAPL"
-    start_date = datetime(2018, 4, 1)
-    end_date = datetime(2022, 7, 19)
+    start_date = datetime(2024, 4, 1)
+    end_date = datetime(2024, 7, 19)
     
-    population_size = 60
-    max_iter = 8000
+    CS=60          
+    MCN=1000        
+    limit=20
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)
     
     
-    signal_columns = [
-        'ma_signal', 'rsi_signal', 'macd_signal', 'bb_signal',
-        'momentum_signal', 'stochastic_signal', 'breakout_signal',
-        'mean_reversion_signal', 'stop_loss_signal', 'trend_following_signal',
-        'turtle_trading_signal', 'volume_price_signal'
+    
+    adjust_weights = {
+        "signal_name" : 'multi_reference_signal',
+        "adjustment_factor": 1.5
+    }
+    
+    
+    references = [
+        {'symbol': '^GSPC', 'ma_window': 50, 'rsi_period': 14},  # S&P 500
+        {'symbol': '^DJI', 'ma_window': 50, 'rsi_period': 14},   # Dow Jones
+        {'symbol': '^IXIC', 'ma_window': 50, 'rsi_period': 14}   # Nasdaq
     ]
+
+    strategy = "all_strategies"
+    
+    strategy_config = {
+        "long_strategies": [
+            {"name": "MovingAverageStrategy", "params": {}},
+            {"name": "BollingerBandsStrategy", "params": {"window": 40}},
+            {"name": "RSIStrategy", "params": {"rsi_period": 30}},
+            {"name": "MACDStrategy", "params": {}},
+            {"name": "ChannelBreakoutStrategy", "params": {}},
+            {"name": "BuyAndHoldStrategy", "params": {}},
+            {"name": "MultiReferenceStrategy", "params": {"start_date": start_date, "end_date": end_date, "references": references}},
+        ],
+        "all_strategies": [
+            {"name": "MovingAverageStrategy", "params": {}},
+            {"name": "BollingerBandsStrategy", "params": {"window": 40}},
+            {"name": "RSIStrategy", "params": {"rsi_period": 30}},
+            {"name": "MACDStrategy", "params": {}},
+            {"name": "ChannelBreakoutStrategy", "params": {}},
+            {"name": "BuyAndHoldStrategy", "params": {}},
+            {"name": "MultiReferenceStrategy", "params": {"start_date": start_date, "end_date": end_date, "references": references}},
+            
+            {"name": "MomentumStrategy", "params": {"window": 40}},
+            {"name": "StochasticOscillatorStrategy", "params": {}},
+            {"name": "BreakoutStrategy", "params": {}},
+            {"name": "MeanReversionStrategy", "params": {"window": 40}},
+            {"name": "StopLossStrategy", "params": {}},
+            {"name": "TrendFollowingStrategy", "params": {}},
+            {"name": "TurtleTradingStrategy", "params": {}},
+            {"name": "VolumePriceStrategy", "params": {}},
+        ],
+        "test_strategies": [
+            {"name": "MovingAverageStrategy", "params": {}},
+            {"name": "BollingerBandsStrategy", "params": {"window": 40}},
+            {"name": "MACDStrategy", "params": {}},
+            {"name": "BuyAndHoldStrategy", "params": {}},
+            {"name": "MeanReversionStrategy", "params": {"window": 40}},
+        ]
+    }
+
+    
+  
     
     @classmethod
-    def display_config(cls):
+    def display_config(cls, signal_columns):
         """Display the configuration of the environment using rich."""
         console = Console()
 
@@ -41,15 +91,15 @@ class Environment(object):
         table.add_row("Target Stock", cls.target_stock)
         table.add_row("Start Date", cls.start_date.strftime('%Y-%m-%d'))
         table.add_row("End Date", cls.end_date.strftime('%Y-%m-%d'))
-        table.add_row("Population Size", str(cls.population_size))
-        table.add_row("Max Iterations", str(cls.max_iter))
+        table.add_row("CS", str(cls.CS))
+        table.add_row("MCN", str(cls.MCN))
         # table.add_row("Weights Range", str(cls.weights_range))
         # table.add_row("x Range", str(cls.x_range.tolist()))
         # table.add_row("Max Thread Workers", str(cls.MAX_THREAD_WORKERS))
         # table.add_row("Max Process Workers", str(cls.MAX_PROCESS_WORKERS))
 
         # Display the signal columns
-        signal_columns_str = ", ".join(cls.signal_columns)
+        signal_columns_str = ", ".join(signal_columns)
         table.add_row("Signal Columns", signal_columns_str)
 
         # Create a panel to contain the table

@@ -1,36 +1,40 @@
-import json
-import matplotlib.pyplot as plt
-import pandas as pd
+import vectorbt as vbt
+import numpy as np
 
-# Step 1: Load the JSON data
-with open('strategy_results.json', 'r') as file:
-    data = json.load(file)
+# 下载 Apple 股票数据
+symbols = ['AAPL']
+price = vbt.YFData.download(symbols, missing_index='drop').get('Close')
 
-# Step 2: Convert df_data back to a DataFrame
-df_data = pd.DataFrame(data['df_data'])
+# 定义均线组合
+windows = np.arange(2, 101)
+fast_ma, slow_ma = vbt.MA.run_combs(price, window=windows, r=2, short_names=['fast', 'slow'])
 
-# Step 3: Extract necessary information
-buy_signals = df_data[df_data['combined_positions'] > data['best_threshold']].index
-sell_signals = df_data[df_data['combined_positions'] < -data['best_threshold']].index
+# 均线策略的买卖信号
+entries_ma = fast_ma.ma_crossed_above(slow_ma)
+exits_ma = fast_ma.ma_crossed_below(slow_ma)
 
-# Step 4: Create the plot
-plt.figure(figsize=(14, 7))
-plt.plot(df_data['Close'], label='Close Price', alpha=0.5)
-plt.plot(df_data['cumulative_returns'], label='Cumulative Returns', alpha=0.7)
+# 添加 RSI 策略 (14 天)
+rsi = vbt.RSI.run(price, window=14)
+entries_rsi = rsi.rsi_crossed_below(30)  # RSI 低于 30 时买入
+exits_rsi = rsi.rsi_crossed_above(70)  # RSI 高于 70 时卖出
 
-# Step 5: Plot buy signals with smaller markers
-plt.scatter(buy_signals, df_data.loc[buy_signals, 'cumulative_returns'], 
-            label='Buy Signal', marker='^', color='green', s=50, alpha=1)
+# 组合信号：可以结合均线策略和 RSI 策略
+entries_combined = entries_ma & entries_rsi  # 当两个条件都满足时买入
+exits_combined = exits_ma & exits_rsi  # 当两个条件都满足时卖出
 
-# Step 6: Plot sell signals with smaller markers
-plt.scatter(sell_signals, df_data.loc[sell_signals, 'cumulative_returns'], 
-            label='Sell Signal', marker='v', color='red', s=50, alpha=1)
+# 创建投资组合
+pf_kwargs = dict(size=np.inf, fees=0.001, freq='1D')
+pf = vbt.Portfolio.from_signals(price, entries_combined, exits_combined, **pf_kwargs)
 
-# Step 7: Customize the plot
-plt.title('Trading Signals and Cumulative Returns')
-plt.xlabel('Date')
-plt.ylabel('Price / Cumulative Returns')
-plt.legend()
-plt.grid()
-plt.savefig('trading_signals_plot.png', dpi=300)  # Save the figure with higher quality
-plt.show()
+# 绘制回测结果的总收益热图
+fig = pf.total_return().vbt.heatmap(
+    x_level='fast_window', y_level='slow_window', slider_level='symbol', symmetric=True,
+    trace_kwargs=dict(colorbar=dict(title='Total return', tickformat='%'))
+)
+fig.show()
+
+# 针对特定窗口组合的结果 (例如 10 天和 20 天均线)
+pf[(10, 20, 'AAPL')].plot().show()
+
+# 输出统计数据
+print(pf.stats())

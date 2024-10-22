@@ -8,8 +8,8 @@ class BreakoutStrategy(BaseStrategy):
             raise ValueError(f"DataFrame is missing required columns: {required_columns}")
 
         df['breakout_signal'] = 0
-        df['high_20'] = df['High'].rolling(window=20).max()
-        df['low_20'] = df['Low'].rolling(window=20).min()
+        df['high_20'] = df['High'].rolling(window=40).max()
+        df['low_20'] = df['Low'].rolling(window=40).min()
         
         # 使用 .loc 設定信號值
         df.loc[df['Close'] > df['high_20'], 'breakout_signal'] = 1  # 突破，買入

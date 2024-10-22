@@ -1,10 +1,13 @@
 from .base_strategy import BaseStrategy
 
 class MeanReversionStrategy(BaseStrategy):
+    def __init__(self, window = 20):
+        self.window = window
+        
     def apply_strategy(self, df):
         # 計算20日移動平均和標準差
-        mean_price = df['Close'].rolling(window=20).mean()
-        std_dev = df['Close'].rolling(window=20).std()
+        mean_price = df['Close'].rolling(window=self.window).mean()
+        std_dev = df['Close'].rolling(window=self.window).std()
         
         # 初始化信號列
         df['mean_reversion_signal'] = 0
