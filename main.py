@@ -1,6 +1,7 @@
 import json
 import yfinance as yf
 from datetime import datetime
+from utility.abc_algorithm import abc_algorithm
 from utility.reward_func import  dqn_algorithm
 from utility.func import adjust_weights
 from utility.stock_plotter import plot_trades
@@ -33,8 +34,8 @@ def main():
     start_time = datetime.now()
 
 
-   # Execute ABC algorithm
-    # best_bee, best_fitness, best_trades_df = run_optimization(
+#    Execute ABC algorithm
+    # best_bee, best_fitness, best_trades_df = abc_algorithm(
     #     df_strategy,
     #     df_data, 
     #     Environment.CS, 
@@ -47,15 +48,19 @@ def main():
     #     # Environment.MAX_THREAD_WORKERS,
     # )    
     
-    dqn_algorithm(df_strategy, df_data, 6, Environment.weights_range,  Environment.x_range,signal_columns)
+    best_bee, best_fitness, best_trades_df =  dqn_algorithm(df_strategy, df_data, 
+                                                            Environment.MCN,
+                                                            Environment.weights_range,
+                                                            Environment.x_range,
+                                                            signal_columns)
     
-    # end_time = datetime.now()
-    # duration = end_time - start_time
+    end_time = datetime.now()
+    duration = end_time - start_time
 
-    # profit_ratio = (best_fitness + initial_price / best_fitness) 
-    
+    profit_ratio = (best_fitness + initial_price / best_fitness) 
+        
 
-    # display_results(best_bee, best_fitness, duration, profit_ratio, best_trades_df)
+    display_results(best_bee, best_fitness, duration, profit_ratio, best_trades_df)
         
     
     # results = {
@@ -70,7 +75,7 @@ def main():
     # with open('strategy_results.json', 'w') as json_file:
     #     json.dump(results, json_file, indent=4)
     
-    # plot_trades(df_data, best_trades_df, best_fitness, 1000, benchmark_df)
+    plot_trades(df_data, best_trades_df, best_fitness, 1000, benchmark_df)
 
     
 

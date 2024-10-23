@@ -79,7 +79,6 @@ six==1.16.0
 soupsieve==2.6
 stack-data==0.6.3
 sympy==1.13.1
-TA-Lib==0.4.32
 tenacity==9.0.0
 tensorboard==2.17.1
 tensorboard-data-server==0.7.2

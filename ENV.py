@@ -14,7 +14,7 @@ class Environment(object):
     end_date = datetime(2024, 7, 19)
     
     CS=60          
-    MCN=1000        
+    MCN=500        
     limit=20
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)

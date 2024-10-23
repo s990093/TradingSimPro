@@ -10,9 +10,9 @@ from rich.console import Console
 from .calculate_returns import calculate_trading_signals
 
 console = Console()  # Initialize rich console
-device = torch.device("mps" if torch.cuda.is_available() else "cpu")
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-print(device)
+console.print(device)
 
 # Define the Q-network
 class QNetwork(nn.Module):
@@ -154,11 +154,14 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
     state_size = len(signal_columns) + 2  # Include weights, buy_threshold, and sell_threshold
     action_size = state_size  # Each component of the state can be an action
     agent = DQNAgent(state_size, action_size)
-    batch_size = 64
+    batch_size = 128
     best_fitness = -float('inf')
     fitness_history = []
     best_trades_df = None
     best_bee = None
+    max_steps = 3000  # Example maximum steps per episode
+    best_reward = None
+    step_count = 0  # Initialize step count
 
 
     with Progress() as progress:
@@ -170,7 +173,8 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
                                     [random.uniform(x_range[0], x_range[1]), random.uniform(x_range[0], x_range[1])]))
             done = False
             total_reward = 0
-            while not done:
+            step_count  = 0 
+            while not done and step_count < max_steps:
                 action = agent.act(state)
 
                 # Take the action: Modify the weights, buy_threshold, sell_threshold
@@ -195,20 +199,29 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
 
                 if len(agent.memory) > batch_size:
                     agent.replay(batch_size)
+                
+                step_count += 1  # Increment step count
+                
+            if step_count >= max_steps:
+                print(f"[Warning] Episode {e + 1} exceeded maximum steps: {max_steps}. Total Reward: {total_reward:.4f}")
+
 
             # Log the best fitness
             if total_reward > best_fitness:
                 best_fitness = total_reward
+                best_reward = reward
                 best_bee = state
                 best_trades_df = current_trades_df
-                console.print(f"[bold green]Episode {e + 1}:[/bold green] Best Fitness: {best_fitness:.4f}")
+                console.print(f"[bold green]Episode {e + 1}:[/bold green] Best Fitness: {best_reward:.4f}")
                 fitness_history.append(best_fitness)
 
             progress.update(task, advance=1)
+            
+        
     
     plot_dqn_convergence(fitness_history, episodes)
     
     # ???
-    plot_metrics(agent)
+    # plot_metrics(agent)
 
     return best_bee, best_fitness, best_trades_df
