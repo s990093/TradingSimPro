@@ -59,8 +59,8 @@ class Environment(object):
             {"name": "RSIStrategy", "params": {}},
             {"name": "STOCHStrategy", "params": {}},
             {"name": "WILLRStrategy", "params": {}},
+            
             {"name": "ChannelBreakoutStrategy", "params": {}},
-
             {"name": "BuyAndHoldStrategy", "params": {}},
             {"name": "MultiReferenceStrategy", "params": {"start_date": start_date, "end_date": end_date, "references": references}},
 

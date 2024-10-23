@@ -2,8 +2,8 @@
 
 from ENV import Environment
 from strategies.strategy_manager import StrategyManager
-# from .buy_and_hold_strategy import BuyAndHoldStrategy
-# from .channel_breakout_strategy import ChannelBreakoutStrategy
+from .buy_and_hold_strategy import BuyAndHoldStrategy
+from .channel_breakout_strategy import ChannelBreakoutStrategy
 # from .strategy_manager import StrategyManager
 # from .momentum_strategy import MomentumStrategy
 # from .stochastic_oscillator import StochasticOscillatorStrategy
@@ -33,6 +33,8 @@ __all__ = ['create_strategies']
 
 strategy_mapping = {**momentum_strategy_mapping, **overlap_strategy_mapping}
 strategy_mapping['MultiReferenceStrategy'] = MultiReferenceStrategy
+strategy_mapping['BuyAndHoldStrategy'] = BuyAndHoldStrategy
+strategy_mapping['ChannelBreakoutStrategy'] = ChannelBreakoutStrategy
 
 
 

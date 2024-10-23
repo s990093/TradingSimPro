@@ -1,7 +1,6 @@
 import os
 import random
 import numpy as np
-import torch
 from rich.progress import Progress
 from rich.console import Console
 import multiprocessing as mp
@@ -17,7 +16,6 @@ writer = SummaryWriter()
 import platform
 console = Console()  # Initialize rich console
 
-os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
 
 
 
