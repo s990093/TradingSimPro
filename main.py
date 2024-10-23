@@ -12,6 +12,7 @@ from strategies import *
 from ENV import Environment
 from utility.print import print_df_strategy, display_results
 import traceback
+import os
 
 
 @click.command()
@@ -20,6 +21,8 @@ def main(algorithm):
     """
     Main function that applies the selected algorithm (ABC or DQN) to the stock data.
     """
+    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+
     
     print(f"Selected algorithm: {algorithm.upper()}")
 
