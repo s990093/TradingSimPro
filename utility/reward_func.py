@@ -1,182 +1,33 @@
 import random
 import numpy as np
-from collections import deque
 import torch
-import torch.nn as nn
-import torch.optim as optim
-from matplotlib import pyplot as plt
 from rich.progress import Progress
 from rich.console import Console
+
+from utility.tool import log_gpu_usage, get_local_device
+from utility.DQNAgent import DQNAgent
+from utility.plot_dqn_convergence import plot_dqn_convergence
 from .calculate_returns import calculate_trading_signals
+from torch.utils.tensorboard import SummaryWriter
 
-console = Console()  # Initialize rich console
+writer = SummaryWriter()
+
 import platform
-
-# Check for macOS and if MPS is available
-if platform.system() == "Darwin" and torch.backends.mps.is_available():
-    device = torch.device("mps")
-    print("Using MPS backend on macOS")
-# Check for CUDA (NVIDIA GPUs)
-elif torch.cuda.is_available():
-    device = torch.device("cuda")
-    print("Using CUDA backend")
-# Default to CPU
-else:
-    device = torch.device("cpu")
-    print("Using CPU backend")
-
-console.print(f"Selected device: {device}")
-
-# Define the Q-network
-class QNetwork(nn.Module):
-    def __init__(self, state_size, action_size):
-        super(QNetwork, self).__init__()
-        self.fc1 = nn.Linear(state_size, 128)
-        self.fc2 = nn.Linear(128, 128)
-        self.fc3 = nn.Linear(128, action_size)
-
-    def forward(self, state):
-        x = torch.relu(self.fc1(state))
-        x = torch.relu(self.fc2(x))
-        return self.fc3(x)
+console = Console()  # Initialize rich console
 
 
-class DQNAgent:
-    def __init__(self, state_size, action_size):
-        self.state_size = state_size
-        self.action_size = action_size
-        self.memory = deque(maxlen=2000)
-        self.gamma = 0.95    # Discount rate
-        self.epsilon = 1.0   # Exploration rate
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.995
-        self.learning_rate = 0.001
-        self.model = QNetwork(state_size, action_size).to(device)
-        self.optimizer = optim.Adam(self.model.parameters(), lr=self.learning_rate)
-        self.criterion = nn.MSELoss()
-        
-        # Initialize lists to track metrics
-        self.losses = []
-        self.rewards = []
-        self.epsilon_history = []
 
-    def remember(self, state, action, reward, next_state, done):
-        self.memory.append((state, action, reward, next_state, done))
-
-    def act(self, state):
-        if np.random.rand() <= self.epsilon:
-            return random.randrange(self.action_size)
-        act_values = self.model(torch.FloatTensor(state).to(device))
-        return torch.argmax(act_values).item()
-
-    def replay(self, batch_size):
-        total_loss = 0
-        total_reward = 0
-        
-        minibatch = random.sample(self.memory, batch_size)
-        for state, action, reward, next_state, done in minibatch:
-            state = torch.FloatTensor(state).to(device)
-            next_state = torch.FloatTensor(next_state).to(device)
-            
-            target = reward
-            if not done:
-                target = reward + self.gamma * torch.max(self.model(next_state)).item()
-            
-            target_f = self.model(state)
-            current_q_value = target_f[action]
-            
-            # Compute the loss only for the selected action
-            # loss = self.criterion(current_q_value, torch.FloatTensor([target]).to(device))
-            loss = self.criterion(current_q_value.unsqueeze(0), torch.FloatTensor([target]).to(device))
-
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            
-            total_loss += loss.item()
-            total_reward += reward
-        
-        # Record metrics
-        self.losses.append(total_loss / batch_size)  # Average loss
-        self.rewards.append(total_reward / batch_size)  # Average reward
-        self.epsilon_history.append(self.epsilon)  # Track epsilon
-        
-        if self.epsilon > self.epsilon_min:
-            self.epsilon *= self.epsilon_decay
-
-    def load(self, name):
-        self.model.load_state_dict(torch.load(name))
-
-    def save(self, name):
-        torch.save(self.model.state_dict(), name)
 
 # Define the fitness function as reward
 def fitness(weights, buy_threshold, sell_threshold, df_strategy, df_data, signal_columns):  
     return calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data)
 
 
-def plot_dqn_convergence(fitness_history, max_iter):
-    plt.ion()  # Turn on interactive mode
-    plt.figure(figsize=(10, 6))
-    plt.title('DQN Algorithm Convergence')
-    plt.xlabel('Iterations')
-    plt.ylabel('Fitness Value')
-
-    # Initialize an empty line
-    line, = plt.plot([], [], label='Best Fitness', color='b')  
-    plt.legend()
-    plt.grid(True)
-
-    # Set the x and y axis limits
-    plt.xlim(0, max_iter)
-    plt.ylim(min(fitness_history) - 1, max(fitness_history) + 1)
-
-    # Updating the plot
-    line.set_xdata(range(len(fitness_history)))  # Update x data
-    line.set_ydata(fitness_history)  # Update y data
-
-    # Redraw the plot to show updates
-    plt.draw()
-    plt.pause(0.01)  # Pause to ensure the plot updates interactively
-
-    # Save the figure as a PNG file
-    plt.savefig('res/dqn_algorithm_convergence.png', dpi=300)
-
-    # Manually close the plot
-    plt.ioff()  # Turn off interactive mode after plotting
-    plt.show()  # Wait for manual plot closure
-
-def plot_metrics(agent):
-    # Plot loss
-    plt.figure(figsize=(12, 5))
-
-    plt.subplot(1, 3, 1)
-    plt.plot(agent.losses)
-    plt.title('Loss Over Time')
-    plt.xlabel('Training Steps')
-    plt.ylabel('Loss')
-
-    # Plot rewards
-    plt.subplot(1, 3, 2)
-    plt.plot(agent.rewards)
-    plt.title('Rewards Over Time')
-    plt.xlabel('Training Steps')
-    plt.ylabel('Average Reward')
-
-    # Plot epsilon
-    plt.subplot(1, 3, 3)
-    plt.plot(agent.epsilon_history)
-    plt.title('Epsilon Decay Over Time')
-    plt.xlabel('Training Steps')
-    plt.ylabel('Epsilon')
-
-    plt.tight_layout()
-    plt.show()
-    
 def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal_columns):
     state_size = len(signal_columns) + 2  # Include weights, buy_threshold, and sell_threshold
+    device = get_local_device()
     action_size = state_size  # Each component of the state can be an action
-    agent = DQNAgent(state_size, action_size)
+    agent = DQNAgent(device, state_size, action_size)
     batch_size = 128 * 2
     best_fitness = -float('inf')
     fitness_history = []
@@ -221,12 +72,15 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
                 state = new_state
 
                 if len(agent.memory) > batch_size:
-                    agent.replay(batch_size)
-                
-                step_count += 1  # Increment step count
+                    loass = agent.replay(batch_size)
+                    writer.add_scalar('Loss/episode', loass , step_count)  # Log the loss in TensorBoard
+                    
+                step_count += 1 
                 
             if step_count >= max_steps:
                 print(f"[Warning] Episode {e + 1} exceeded maximum steps: {max_steps}. Total Reward: {total_reward:.4f}")
+                
+            writer.add_scalar('Reward/episode', total_reward, e)
 
 
             # Log the best fitness
@@ -242,9 +96,11 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
             
         
     
+    writer.close() 
     plot_dqn_convergence(fitness_history, episodes)
     
     # ???
     # plot_metrics(agent)
+    
 
     return best_bee, best_fitness, best_trades_df

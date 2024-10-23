@@ -14,7 +14,7 @@ class Environment(object):
     end_date = datetime(2024, 7, 19)
     
     CS=60          
-    MCN=500        
+    MCN=2
     limit=20
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)
@@ -86,11 +86,11 @@ class Environment(object):
         table.add_column("Value", style="magenta")
 
         # Populate the table with environment properties
-        table.add_row("Target Stock", cls.target_stock)
-        table.add_row("Start Date", cls.start_date.strftime('%Y-%m-%d'))
-        table.add_row("End Date", cls.end_date.strftime('%Y-%m-%d'))
-        table.add_row("CS", str(cls.CS))
-        table.add_row("MCN", str(cls.MCN))
+        table.add_row("Target Stock", cls.target_stock, style="yellow")
+        table.add_row("Start Date", cls.start_date.strftime('%Y-%m-%d'), style="green")
+        table.add_row("End Date", cls.end_date.strftime('%Y-%m-%d'),style="yellow")
+        table.add_row("CS", str(cls.CS), style="yellow")
+        table.add_row("MCN", str(cls.MCN), style="green")
         # table.add_row("Weights Range", str(cls.weights_range))
         # table.add_row("x Range", str(cls.x_range.tolist()))
         # table.add_row("Max Thread Workers", str(cls.MAX_THREAD_WORKERS))
@@ -98,7 +98,7 @@ class Environment(object):
 
         # Display the signal columns
         signal_columns_str = ", ".join(signal_columns)
-        table.add_row("Signal Columns", signal_columns_str)
+        table.add_row("Signal Columns", signal_columns_str, style="yellow")
 
         # Create a panel to contain the table
         panel = Panel(table, title="Configuration Details", border_style="bold blue")

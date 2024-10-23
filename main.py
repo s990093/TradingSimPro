@@ -75,6 +75,7 @@ def main():
     # with open('strategy_results.json', 'w') as json_file:
     #     json.dump(results, json_file, indent=4)
     
+    
     plot_trades(df_data, best_trades_df, best_fitness, 1000, benchmark_df)
 
     
