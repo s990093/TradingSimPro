@@ -10,11 +10,11 @@ class Environment(object):
     MAX_THREAD_WORKERS = 30
     MAX_PROCESS_WORKERS = 30
     target_stock = "AAPL"
-    start_date = datetime(2024, 4, 1)
+    start_date = datetime(2018, 4, 1)
     end_date = datetime(2024, 7, 19)
     
     CS=60          
-    MCN=2
+    MCN=10000
     limit=20
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)

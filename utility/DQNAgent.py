@@ -50,7 +50,9 @@ class DQNAgent:
         minibatch = random.sample(self.memory, batch_size)
 
         # Prepare the batch
-        states = torch.FloatTensor([sample[0] for sample in minibatch]).to(self.device)
+        # states = torch.FloatTensor([sample[0] for sample in minibatch]).to(self.device)
+        states = torch.FloatTensor(np.array([sample[0] for sample in minibatch])).to(self.device)
+
         actions = torch.LongTensor([sample[1] for sample in minibatch]).to(self.device)
         rewards = torch.FloatTensor([sample[2] for sample in minibatch]).to(self.device)
         next_states = torch.FloatTensor([sample[3] for sample in minibatch]).to(self.device)

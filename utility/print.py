@@ -34,8 +34,8 @@ console = Console()
 
 def display_results(best_bee, best_fitness, time, profit_ratio, trades_df):
     # Formatting the best results
-    # best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee['weights']])
-    best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee])
+    best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee['weights']])
+    # best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee])
     # best_threshold_str = f"Sell Threshold: {best_bee['sell_threshold']:.2f}, Buy Threshold: {best_bee['buy_threshold']:.2f}"
     best_return_str = f"{best_fitness:.0f} shares"
 

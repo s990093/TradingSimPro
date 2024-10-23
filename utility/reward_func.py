@@ -3,6 +3,7 @@ import numpy as np
 import torch
 from rich.progress import Progress
 from rich.console import Console
+import multiprocessing as mp
 
 from utility.tool import log_gpu_usage, get_local_device
 from utility.DQNAgent import DQNAgent
@@ -45,9 +46,11 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
             # Initialize state (e.g., random weights, buy_threshold, sell_threshold)
             state = np.concatenate(([random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
                                     [random.uniform(x_range[0], x_range[1]), random.uniform(x_range[0], x_range[1])]))
+
             done = False
             total_reward = 0
             step_count  = 0 
+            
             while not done and step_count < max_steps:
                 action = agent.act(state)
 
@@ -98,9 +101,7 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
     
     writer.close() 
     plot_dqn_convergence(fitness_history, episodes)
-    
-    # ???
-    # plot_metrics(agent)
+  
     
 
     return best_bee, best_fitness, best_trades_df

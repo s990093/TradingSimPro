@@ -1,6 +1,7 @@
 import json
 import yfinance as yf
 from datetime import datetime
+from utility.qlearning import abc_algorithm_qlearning
 from utility.abc_algorithm import abc_algorithm
 from utility.reward_func import  dqn_algorithm
 from utility.func import adjust_weights
@@ -35,25 +36,26 @@ def main():
 
 
 #    Execute ABC algorithm
-    # best_bee, best_fitness, best_trades_df = abc_algorithm(
-    #     df_strategy,
-    #     df_data, 
-    #     Environment.CS, 
-    #     Environment.MCN,
-    #     Environment.limit, 
-    #     Environment.weights_range, 
-    #     Environment.x_range, 
-    #     signal_columns
-    #     # Environment.MAX_PROCESS_WORKERS,
-    #     # Environment.MAX_THREAD_WORKERS,
-    # )    
+    best_bee, best_fitness, best_trades_df = abc_algorithm_qlearning(
+        df_strategy,
+        df_data, 
+        Environment.CS, 
+        Environment.MCN,
+        Environment.limit, 
+        Environment.weights_range, 
+        Environment.x_range, 
+        signal_columns
+        # Environment.MAX_PROCESS_WORKERS,
+        # Environment.MAX_THREAD_WORKERS,
+    )    
     
-    best_bee, best_fitness, best_trades_df =  dqn_algorithm(df_strategy, df_data, 
-                                                            Environment.MCN,
-                                                            Environment.weights_range,
-                                                            Environment.x_range,
-                                                            signal_columns)
+    # best_bee, best_fitness, best_trades_df =  dqn_algorithm(df_strategy, df_data, 
+    #                                                         Environment.MCN,
+    #                                                         Environment.weights_range,
+    #                                                         Environment.x_range,
+    #                                                         signal_columns)
     
+        
     end_time = datetime.now()
     duration = end_time - start_time
 
