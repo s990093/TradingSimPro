@@ -1,29 +1,24 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 from abc import ABC, abstractmethod
+import talib
 
 class TradingSignals:
     BUY = 1      # 买入信号
     SELL = -1    # 卖出信号
     HOLD = 0     # 无操作信号
 
-
-
 class BaseStrategy(ABC):
     TradingSignals = TradingSignals  # Reference to your TradingSignals class
+    talib = talib
 
     def __init__(self, *args, **kwargs):
         self.signal = None  # Store signals for the strategy
         self.df = None  # Store the dataframe used
 
-    @abstractmethod
     def apply_strategy(self, df):
-        """
-        Core logic of each specific strategy.
-        Must be implemented in every strategy class.
-        """
-        pass
-
+        raise NotImplementedError("Subclasses should implement this!")
+    
     def visualize(self):
         """
         Visualizes the strategy signals on a price chart with buy/sell markers.

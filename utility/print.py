@@ -32,7 +32,7 @@ def print_df_strategy(columns):
 # Initialize console
 console = Console()
 
-def display_results(best_bee, best_fitness, time, profit_ratio, trades_df):
+def display_results(algorithm, best_bee, best_fitness, time, profit_ratio, trades_df):
     # Formatting the best results
     best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee['weights']])
     # best_weights_str = ', '.join([f'{w:.2f}' for w in best_bee])
@@ -75,7 +75,7 @@ def display_results(best_bee, best_fitness, time, profit_ratio, trades_df):
     
 
     # Create a table for better organization
-    table = Table(title="ABC Algorithm Results")
+    table = Table(title=f"{algorithm}")
     
     # Add columns to the table
     table.add_column("Metric", style="cyan", no_wrap=True)

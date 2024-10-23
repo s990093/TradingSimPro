@@ -31,9 +31,40 @@ class Environment(object):
         {'symbol': '^IXIC', 'ma_window': 50, 'rsi_period': 14}   # Nasdaq
     ]
 
-    strategy = "all_strategies"
+    strategy = "ta_strategies"
     
     strategy_config = {
+        "ta_strategies" :[
+            {"name": "BollingerBandsStrategy", "params": {"timeperiod": 40}},
+            {"name": "DEMAStrategy", "params": {}},
+            {"name": "EMAStrategy", "params": {}},
+            {"name": "HilbertTransformTrendlineStrategy", "params": {}},
+            {"name": "KAMAStrategy", "params": {}},
+            {"name": "MovingAverageStrategy", "params": {}},
+            {"name": "MAMAStrategy", "params": {}},
+            # {"name": "MAVPStrategy", "params": {}},
+            {"name": "MidPointStrategy", "params": {}},
+            {"name": "MidPriceStrategy", "params": {}},
+            {"name": "SARStrategy", "params": {}},
+            {"name": "SimpleMovingAverageStrategy", "params": {}},
+            {"name": "T3Strategy", "params": {}},
+            {"name": "WeightedMovingAverageStrategy", "params": {}},
+            {"name": "ADXStrategy", "params": {}},
+            {"name": "ADXRStrategy", "params": {}},
+            {"name": "APOCStrategy", "params": {}},
+            {"name": "AROONStrategy", "params": {}},
+            {"name": "MACDStrategy", "params": {}},
+            {"name": "MACDEXTStrategy", "params": {}},
+            {"name": "MFIStrategy", "params": {}},
+            {"name": "RSIStrategy", "params": {}},
+            {"name": "STOCHStrategy", "params": {}},
+            {"name": "WILLRStrategy", "params": {}},
+            {"name": "ChannelBreakoutStrategy", "params": {}},
+
+            {"name": "BuyAndHoldStrategy", "params": {}},
+            {"name": "MultiReferenceStrategy", "params": {"start_date": start_date, "end_date": end_date, "references": references}},
+
+        ],
         "long_strategies": [
             {"name": "MovingAverageStrategy", "params": {}},
             {"name": "BollingerBandsStrategy", "params": {"window": 40}},
@@ -51,7 +82,6 @@ class Environment(object):
             {"name": "ChannelBreakoutStrategy", "params": {}},
             {"name": "BuyAndHoldStrategy", "params": {}},
             {"name": "MultiReferenceStrategy", "params": {"start_date": start_date, "end_date": end_date, "references": references}},
-            
             {"name": "MomentumStrategy", "params": {"window": 40}},
             {"name": "StochasticOscillatorStrategy", "params": {}},
             {"name": "BreakoutStrategy", "params": {}},

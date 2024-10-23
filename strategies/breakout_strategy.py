@@ -7,13 +7,13 @@ class BreakoutStrategy(BaseStrategy):
         if not all(col in df.columns for col in required_columns):
             raise ValueError(f"DataFrame is missing required columns: {required_columns}")
 
-        df['breakout_signal'] = 0
+        df['breakout_signal'] = self.TradingSignals.HOLD
         df['high_20'] = df['High'].rolling(window=40).max()
         df['low_20'] = df['Low'].rolling(window=40).min()
         
         # 使用 .loc 設定信號值
-        df.loc[df['Close'] > df['high_20'], 'breakout_signal'] = 1  # 突破，買入
-        df.loc[df['Close'] < df['low_20'], 'breakout_signal'] = -1  # 跌破，賣出
+        df.loc[df['Close'] > df['high_20'], 'breakout_signal'] = self.TradingSignals.BUY  # 突破，買入
+        df.loc[df['Close'] < df['low_20'], 'breakout_signal'] = self.TradingSignals.SELL  # 跌破，賣出
         
         # df['breakout_signal'] = df['signal'].diff()
         
