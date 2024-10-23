@@ -10,9 +10,22 @@ from rich.console import Console
 from .calculate_returns import calculate_trading_signals
 
 console = Console()  # Initialize rich console
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+import platform
 
-console.print(device)
+# Check for macOS and if MPS is available
+if platform.system() == "Darwin" and torch.backends.mps.is_available():
+    device = torch.device("mps")
+    print("Using MPS backend on macOS")
+# Check for CUDA (NVIDIA GPUs)
+elif torch.cuda.is_available():
+    device = torch.device("cuda")
+    print("Using CUDA backend")
+# Default to CPU
+else:
+    device = torch.device("cpu")
+    print("Using CPU backend")
+
+console.print(f"Selected device: {device}")
 
 # Define the Q-network
 class QNetwork(nn.Module):
@@ -26,6 +39,7 @@ class QNetwork(nn.Module):
         x = torch.relu(self.fc1(state))
         x = torch.relu(self.fc2(x))
         return self.fc3(x)
+
 
 class DQNAgent:
     def __init__(self, state_size, action_size):
@@ -52,7 +66,7 @@ class DQNAgent:
     def act(self, state):
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
-        act_values = self.model(torch.FloatTensor(state))
+        act_values = self.model(torch.FloatTensor(state).to(device))
         return torch.argmax(act_values).item()
 
     def replay(self, batch_size):
@@ -61,17 +75,26 @@ class DQNAgent:
         
         minibatch = random.sample(self.memory, batch_size)
         for state, action, reward, next_state, done in minibatch:
+            state = torch.FloatTensor(state).to(device)
+            next_state = torch.FloatTensor(next_state).to(device)
+            
             target = reward
             if not done:
-                target = reward + self.gamma * torch.max(self.model(torch.FloatTensor(next_state))).item()
-            target_f = self.model(torch.FloatTensor(state))
-            target_f[action] = target
+                target = reward + self.gamma * torch.max(self.model(next_state)).item()
+            
+            target_f = self.model(state)
+            current_q_value = target_f[action]
+            
+            # Compute the loss only for the selected action
+            # loss = self.criterion(current_q_value, torch.FloatTensor([target]).to(device))
+            loss = self.criterion(current_q_value.unsqueeze(0), torch.FloatTensor([target]).to(device))
+
             self.optimizer.zero_grad()
-            loss = self.criterion(target_f, torch.FloatTensor(target_f))
             loss.backward()
             self.optimizer.step()
             
-            
+            total_loss += loss.item()
+            total_reward += reward
         
         # Record metrics
         self.losses.append(total_loss / batch_size)  # Average loss
@@ -154,7 +177,7 @@ def dqn_algorithm(df_strategy, df_data, episodes, weights_range, x_range, signal
     state_size = len(signal_columns) + 2  # Include weights, buy_threshold, and sell_threshold
     action_size = state_size  # Each component of the state can be an action
     agent = DQNAgent(state_size, action_size)
-    batch_size = 128
+    batch_size = 128 * 2
     best_fitness = -float('inf')
     fitness_history = []
     best_trades_df = None

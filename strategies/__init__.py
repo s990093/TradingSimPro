@@ -43,7 +43,7 @@ strategy_mapping = {
     "VolumePriceStrategy": VolumePriceStrategy,
 }
 
-def create_strategies():
+def  create_strategies():
     strategy_config = Environment.strategy_config
     strategies = []
 

@@ -19,8 +19,6 @@ class Environment(object):
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)
     
-    
-    
     adjust_weights = {
         "signal_name" : 'multi_reference_signal',
         "adjustment_factor": 1.5

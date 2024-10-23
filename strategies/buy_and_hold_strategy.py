@@ -1,7 +1,6 @@
 import numpy as np
 from .base_strategy import BaseStrategy
 import talib as ta
-
 class BuyAndHoldStrategy(BaseStrategy):
     name = "buy_hold_signal"
     def __init__(self):
