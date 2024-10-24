@@ -9,14 +9,14 @@ from rich.panel import Panel
 class Environment(object):
     MAX_THREAD_WORKERS = 30
     MAX_PROCESS_WORKERS = 30
-    restart_threshold = 200
+    restart_threshold = 20
     max_restarts = 1000
     target_stock = "AAPL"
     start_date = datetime(2018, 4, 1)
     end_date = datetime(2024, 7, 19)
     
     CS=60          
-    MCN=1000
+    MCN=4
     limit=20
     weights_range = [0, 1, 2, 3, 4, 5]
     x_range = np.arange(0.05, 0.5, 0.05)

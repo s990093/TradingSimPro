@@ -14,6 +14,7 @@ def main():
     
     initial_price = df_data.iloc[0]['Open'] 
 
+    df_data = df_data.astype('float')
 
 
     strategy_manager = create_strategies()

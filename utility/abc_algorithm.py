@@ -161,6 +161,7 @@ class ABCAlgorithmManager(AlgorithmManager):
                 self.best_fitness = best_fitness
                 self.best_trades_df = best_trades_df
                 self.plot_abc_algorithm_convergence(fitness_history, MCN)
+                break
 
             restarts += 1
 

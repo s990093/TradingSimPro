@@ -1,4 +1,5 @@
 import itertools
+import os
 import numpy as np
 from rich.console import Console
 from rich.panel import Panel
@@ -7,7 +8,10 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from ENV import Environment
 from utility.calculate_returns import calculate_returns
+max_workers = os.cpu_count()
 
+# 设置批次大小
+BATCH_SIZE = 100000  # 根据需要调整批次大小
 
 def process_combination(combination, df_strategy, df_data):
     # Initialize combined positions to zeros
@@ -50,30 +54,36 @@ def select_best_strategies(df_strategy, df_data, signal_columns):
         
         task = progress.add_task("Processing combinations...", total=total_combinations)
 
-        # Create a ProcessPoolExecutor
-        with ProcessPoolExecutor() as executor:
-            futures = []
+        # Loop through combinations of 4 to the total number of strategies
+        for r in range(4, num_strategies + 1):
+            # Generate all combinations of the strategies in signal_columns for this value of r
+            combinations = list(itertools.combinations(signal_columns, r))
 
-            # Loop through combinations of 4 to the total number of strategies
-            for r in range(4, num_strategies + 1):
-                # Generate all combinations of the strategies in signal_columns
-                for combination in itertools.combinations(signal_columns, r):
-                    # Submit the combination processing to the executor
-                    futures.append(executor.submit(process_combination, combination, df_strategy.copy(), df_data))
+            # Break combinations into batches
+            for i in range(0, len(combinations), BATCH_SIZE):
+                batch = combinations[i:i + BATCH_SIZE]
 
-            # Process completed futures
-            for future in as_completed(futures):
-                combination, total_return = future.result()
+                # Create a ProcessPoolExecutor for each batch
+                with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                    futures = []
 
-                # Check if this combination gives the best performance so far
-                if total_return > best_performance:
-                    best_performance = total_return
-                    best_combination = combination
+                    # Submit batch combinations for processing
+                    for combination in batch:
+                        futures.append(executor.submit(process_combination, combination, df_strategy.copy(), df_data))
 
-                    # Log the performance of the best combination found so far
-                    console.print(Panel(f"New best combination found: {combination} with return: {total_return}", title="Best Combination", border_style="green"))
+                    # Process completed futures
+                    for future in as_completed(futures):
+                        combination, total_return = future.result()
 
-                # Update the progress bar
-                progress.update(task, advance=1)
+                        # Check if this combination gives the best performance so far
+                        if total_return > best_performance:
+                            best_performance = total_return
+                            best_combination = combination
+
+                            # Log the performance of the best combination found so far
+                            console.print(Panel(f"New best combination found: {combination} with return: {total_return}", title="Best Combination", border_style="green"))
+
+                        # Update the progress bar
+                        progress.update(task, advance=1)
 
     return best_combination, best_performance
