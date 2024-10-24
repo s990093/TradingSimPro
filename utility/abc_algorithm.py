@@ -7,10 +7,15 @@ import multiprocessing as mp
 
 __all__ = ['AlgorithmManager']
 
-
 def calculate_fitness(bee, df_strategy, df_data, signal_columns):
     """Calculate the fitness for a given bee."""
     return fitness(bee['weights'], bee['buy_threshold'], bee['sell_threshold'], df_strategy, df_data, signal_columns)
+
+
+def chunks(lst, n):
+    """Yield successive n-sized chunks from lst."""
+    for i in range(0, len(lst), n):
+        yield lst[i:i + n]
 
 class ABCAlgorithmManager(AlgorithmManager):
     def __init__(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns,
@@ -33,7 +38,6 @@ class ABCAlgorithmManager(AlgorithmManager):
     def run_algorithm(self,):
         self.abc_algorithm(self.df_strategy, self.df_data, self.CS, self.MCN, self.limit, self.weights_range, self.x_range, self.signal_columns)
 
-    
     def abc_algorithm(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns):
         def initialize_bees():
             return [{
@@ -57,14 +61,21 @@ class ABCAlgorithmManager(AlgorithmManager):
             cycle = 1
             first_three_best_fitness = []
 
+            # Define chunk size based on CPU count and CS (colony size)
+            chunk_size = max(1, CS // mp.cpu_count())
+
             with Progress() as progress:
                 task = progress.add_task("Running ABC Algorithm...", total=MCN)
 
                 while cycle <= MCN:
                     # Employed bee phase
                     with Pool(processes=mp.cpu_count()) as pool:
-                        fitness_results = pool.starmap(calculate_fitness, [(bee, df_strategy, df_data, signal_columns) for bee in bees])
+                        fitness_results = pool.starmap(
+                            calculate_fitness,
+                            [(bee, df_strategy, df_data, signal_columns) for batch in chunks(bees, chunk_size) for bee in batch]
+                        )
 
+                    # Process the results after the parallel computation
                     for s in range(CS):
                         new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
                         new_buy_threshold = random.uniform(x_range[0], x_range[1]) 
@@ -143,10 +154,8 @@ class ABCAlgorithmManager(AlgorithmManager):
                 self.best_fitness = best_fitness
                 self.best_trades_df = best_trades_df
                 self.plot_abc_algorithm_convergence(fitness_history, MCN)
-                
-               
 
             restarts += 1
 
         self.console.print("[bold red]Algorithm failed to find a solution after 1000 restarts.[/bold red]")
-        return None, None, None
+        return None, None, None      
