@@ -4,11 +4,12 @@ import matplotlib.pyplot as plt
 from rich.console import Console
 
 from utility.calculate_returns import calculate_trading_signals
+from utility.calculate_returns_jit import fitness
 
 __all__ = ['fitness', 'AlgorithmManager']
 
-def fitness(weights, buy_threshold, sell_threshold, df_strategy, df_data, signal_columns):  
-    return calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data)
+# def fitness(weights, buy_threshold, sell_threshold, df_strategy, df_data, signal_columns):  
+#     return calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data)
 
 
 class AlgorithmManager:

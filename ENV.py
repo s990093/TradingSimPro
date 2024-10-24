@@ -9,8 +9,8 @@ from rich.panel import Panel
 class Environment(object):
     MAX_THREAD_WORKERS = 30
     MAX_PROCESS_WORKERS = 30
-    restart_threshold = 1
-    max_restarts = 10
+    restart_threshold = 200
+    max_restarts = 1000
     target_stock = "AAPL"
     start_date = datetime(2018, 4, 1)
     end_date = datetime(2024, 7, 19)

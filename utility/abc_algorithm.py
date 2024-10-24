@@ -4,6 +4,7 @@ from ENV import Environment
 from utility.base.base_alg import AlgorithmManager, fitness
 from multiprocessing import Pool
 import multiprocessing as mp
+from numba import njit
 
 __all__ = ['AlgorithmManager']
 
@@ -37,6 +38,12 @@ class ABCAlgorithmManager(AlgorithmManager):
     
     def run_algorithm(self,):
         self.abc_algorithm(self.df_strategy, self.df_data, self.CS, self.MCN, self.limit, self.weights_range, self.x_range, self.signal_columns)
+        
+        
+    @njit
+    def calculate_new_thresholds(x_range):
+        return (random.uniform(x_range[0], x_range[1]), random.uniform(x_range[0], x_range[1]))
+
 
     def abc_algorithm(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns):
         def initialize_bees():
