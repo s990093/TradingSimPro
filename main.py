@@ -1,18 +1,16 @@
-import json
 import yfinance as yf
 from datetime import datetime
 import click
-from utility.qlearning import abc_algorithm_qlearning
-from utility.abc_algorithm import abc_algorithm
+from utility.qlearning import ABCQlearningAlgorithmManager
+from utility.abc_algorithm import ABCAlgorithmManager
 from utility.reward_func import dqn_algorithm
-from utility.func import adjust_weights
 from utility.stock_plotter import plot_trades
-from utility.calculate_returns import calculate_trading_signals
 from strategies import *
 from ENV import Environment
-from utility.print import print_df_strategy, display_results
+from utility.print import display_results
 import traceback
 import os
+
 
 
 @click.command()
@@ -48,7 +46,8 @@ def main(algorithm):
     # Execute selected algorithm
     if algorithm == 'abc':
         print("Running ABC Algorithm...")
-        best_bee, best_fitness, best_trades_df = abc_algorithm(
+        
+        abc = ABCAlgorithmManager(
             df_strategy,
             df_data,
             Environment.CS,
@@ -56,29 +55,42 @@ def main(algorithm):
             Environment.limit,
             Environment.weights_range,
             Environment.x_range,
-            signal_columns
+            signal_columns,
+            Environment.restart_threshold,
+            Environment.max_restarts
         )
+        
+        abc.run_algorithm()
+        abc.store_results_pickle()
+        best_bee, best_fitness, best_trades_df = abc.get_res()
+        
     elif algorithm == 'q':            
-     best_bee, best_fitness, best_trades_df = abc_algorithm_qlearning(
-            df_strategy,
-            df_data,
-            Environment.CS,
-            Environment.MCN,
-            Environment.limit,
-            Environment.weights_range,
-            Environment.x_range,
-            signal_columns
-        )
-    elif algorithm == 'dqn':
-        print("Running DQN Algorithm...")
-        best_bee, best_fitness, best_trades_df = dqn_algorithm(
-            df_strategy,
-            df_data,
-            Environment.MCN,
-            Environment.weights_range,
-            Environment.x_range,
-            signal_columns
-        )
+        abc_q = ABCQlearningAlgorithmManager(
+                df_strategy,
+                df_data,
+                Environment.CS,
+                Environment.MCN,
+                Environment.limit,
+                Environment.weights_range,
+                Environment.x_range,
+                signal_columns
+            )
+        abc_q.run_algorithm()
+        
+        abc_q.store_results_pickle()
+        
+        best_bee, best_fitness, best_trades_df = abc_q.get_res()
+        
+    # elif algorithm == 'dqn':
+    #     print("Running DQN Algorithm...")
+    #     best_bee, best_fitness, best_trades_df = dqn_algorithm(
+    #         df_strategy,
+    #         df_data,
+    #         Environment.MCN,
+    #         Environment.weights_range,
+    #         Environment.x_range,
+    #         signal_columns
+    #     )
     else:
         raise ValueError("Unknown algorithm selected.")
 
@@ -93,8 +105,9 @@ def main(algorithm):
     display_results(algorithm, best_bee, best_fitness, duration, profit_ratio, best_trades_df)
 
     # Plot the trades
-    plot_trades(df_data, best_trades_df, best_fitness, 1000, benchmark_df)
-
+    plot_trades(algorithm, df_data, best_trades_df, best_fitness, 1000, benchmark_df)
+    
+    
 
 if __name__ == "__main__":
     try:

@@ -1,138 +1,152 @@
 import random
-from matplotlib import pyplot as plt
 from rich.progress import Progress
-from rich.console import Console
 from ENV import Environment
-from .calculate_returns import calculate_trading_signals
+from utility.base.base_alg import AlgorithmManager, fitness
+from multiprocessing import Pool
+import multiprocessing as mp
+
+__all__ = ['AlgorithmManager']
 
 
-console = Console()  # Initialize rich console
+def calculate_fitness(bee, df_strategy, df_data, signal_columns):
+    """Calculate the fitness for a given bee."""
+    return fitness(bee['weights'], bee['buy_threshold'], bee['sell_threshold'], df_strategy, df_data, signal_columns)
 
-# Define the fitness function
-def fitness(weights, buy_threshold, sell_threshold, df_strategy, df_data, signal_columns):  
-    return calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data)
+class ABCAlgorithmManager(AlgorithmManager):
+    def __init__(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns,
+                 restart_threshold=200, max_restarts=1000, num_processes=mp.cpu_count()):
+        super().__init__(self.__class__.__name__)
+        self.df_strategy = df_strategy
+        self.df_data = df_data
+        self.CS = CS
+        self.MCN = MCN
+        self.limit = limit
+        self.weights_range = weights_range
+        self.x_range = x_range
+        self.signal_columns = signal_columns
+        self.num_processes = num_processes
+        
+        self.restart_threshold = restart_threshold
+        self.max_restarts = max_restarts
 
+    
+    def run_algorithm(self,):
+        self.abc_algorithm(self.df_strategy, self.df_data, self.CS, self.MCN, self.limit, self.weights_range, self.x_range, self.signal_columns)
 
-def plot_abc_algorithm_convergence(fitness_history, max_iter):
-    plt.ion()  # Turn on interactive mode
-    plt.figure(figsize=(10, 6))
-    plt.title('ABC Algorithm Convergence')
-    plt.xlabel('Iterations')
-    plt.ylabel('Fitness Value')
+    
+    def abc_algorithm(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns):
+        def initialize_bees():
+            return [{
+                'weights': [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
+                'buy_threshold': random.uniform(x_range[0], x_range[1]),
+                'sell_threshold': random.uniform(x_range[0], x_range[1]),
+                'trials': 0  # Initialize trial counts
+            } for _ in range(CS)]
 
-    # Initialize an empty line
-    line, = plt.plot([], [], label='Best Fitness', color='b')  
-    plt.legend()
-    plt.grid(True)
+        restart_threshold = self.restart_threshold
+        max_restarts = self.restart_threshold
+        restarts = 0
+        
+        while restarts < max_restarts:
+            # Initialize variables
+            bees = initialize_bees()
+            best_bee = None
+            best_fitness = -float('inf')
+            fitness_history = []  # To store the best fitness values over iterations
+            best_trades_df = None
+            cycle = 1
+            first_three_best_fitness = []
 
-    # Set the x and y axis limits
-    plt.xlim(0, max_iter)
-    plt.ylim(min(fitness_history) - 1, max(fitness_history) + 1)
+            with Progress() as progress:
+                task = progress.add_task("Running ABC Algorithm...", total=MCN)
 
-    # Updating the plot
-    line.set_xdata(range(len(fitness_history)))  # Update x data
-    line.set_ydata(fitness_history)  # Update y data
+                while cycle <= MCN:
+                    # Employed bee phase
+                    with Pool(processes=mp.cpu_count()) as pool:
+                        fitness_results = pool.starmap(calculate_fitness, [(bee, df_strategy, df_data, signal_columns) for bee in bees])
 
-    # Redraw the plot to show updates
-    plt.draw()
-    plt.pause(0.01)  # Pause to ensure the plot updates interactively
+                    for s in range(CS):
+                        new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
+                        new_buy_threshold = random.uniform(x_range[0], x_range[1]) 
+                        new_sell_threshold = random.uniform(x_range[0], x_range[1])
 
-    # Save the figure as a PNG file
-    plt.savefig('res/abc_algorithm_convergence.png', dpi=300)
+                        new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
 
-    # Manually close the plot
-    plt.ioff()  # Turn off interactive mode after plotting
-    plt.show()  # Wait for manual plot closure
+                        if new_fitness > fitness_results[s][0]:
+                            bees[s]['weights'] = new_weights
+                            bees[s]['buy_threshold'] = new_buy_threshold
+                            bees[s]['sell_threshold'] = new_sell_threshold
+                            bees[s]['trials'] = 0
+                        else:
+                            bees[s]['trials'] += 1
 
-def abc_algorithm(df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns):
-    # Initialize bee population
-    bees = [{
-        'weights': [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
-        'buy_threshold': random.uniform(x_range[0], x_range[1]),
-        'sell_threshold': random.uniform(x_range[0], x_range[1]),
-        'trials': 0  # Initialize trial counts
-    } for _ in range(CS)]
+                    # Onlooker bee phase
+                    total_fitness = sum(result[0] for result in fitness_results)
+                    probabilities = [result[0] / total_fitness for result in fitness_results]
 
-    best_bee = None
-    best_fitness = -float('inf')
-    fitness_history = []  # To store the best fitness values over iterations
-    best_trades_df = None
+                    for s in range(CS):
+                        if random.random() < probabilities[s]:
+                            new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
+                            new_buy_threshold = random.uniform(x_range[0], x_range[1])
+                            new_sell_threshold = random.uniform(x_range[0], x_range[1])
 
-    with Progress() as progress:
-        task = progress.add_task("Running ABC Algorithm...", total=MCN)
+                            new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
 
-        cycle = 1
-        while cycle <= MCN:
-            # Employed bee phase
-            for s in range(CS):
-                # Generate new solution
-                new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
-                new_buy_threshold = random.uniform(x_range[0], x_range[1])
-                new_sell_threshold = random.uniform(x_range[0], x_range[1])
+                            if new_fitness > fitness_results[s][0]:
+                                bees[s]['weights'] = new_weights
+                                bees[s]['buy_threshold'] = new_buy_threshold
+                                bees[s]['sell_threshold'] = new_sell_threshold
+                                bees[s]['trials'] = 0
+                            else:
+                                bees[s]['trials'] += 1
+
+                    # Scout bee phase
+                    for s in range(CS):
+                        if bees[s]['trials'] > limit:
+                            bees[s] = {
+                                'weights': [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
+                                'buy_threshold': random.uniform(x_range[0], x_range[1]),
+                                'sell_threshold': random.uniform(x_range[0], x_range[1]),
+                                'trials': 0
+                            }
+
+                    # Update best solution
+                    for i, bee in enumerate(bees):
+                        current_fitness, current_trades_df = fitness_results[i]
+                        if current_fitness > best_fitness:
+                            best_bee = bee
+                            best_fitness = current_fitness
+                            best_trades_df = current_trades_df
+                            self.console.print(f"[bold green]Cycle {cycle}:[/bold green] Best Fitness: {best_fitness:.4f}")
+
+                    fitness_history.append(best_fitness)
+
+                    # Track best fitness in the first three cycles
+                    if cycle <= 3:
+                        first_three_best_fitness.append(best_fitness)
+
+                    # Check if best fitness exceeded 150 within the first three cycles
+                    if cycle == 3 and max(first_three_best_fitness) < restart_threshold:
+                        self.console.print(f"[bold red]Restarting due to low fitness in first three cycles ({max(first_three_best_fitness)} < {restart_threshold})[/bold red]")
+                        break 
+
+                    # Update the progress bar
+                    progress.update(task, advance=1)
+                    cycle += 1
+
+                    if cycle > MCN:
+                        break
+
+            # If fitness exceeded 150 in the first three cycles, return the result
+            if max(first_three_best_fitness) >= restart_threshold:
+                self.best_bee = best_bee
+                self.best_fitness = best_fitness
+                self.best_trades_df = best_trades_df
+                self.plot_abc_algorithm_convergence(fitness_history, MCN)
                 
-                # Calculate fitness of new solution
-                new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
+               
 
-                # Greedy selection
-                if new_fitness > fitness(bees[s]['weights'], bees[s]['buy_threshold'], bees[s]['sell_threshold'], df_strategy, df_data, signal_columns)[0]:
-                    bees[s]['weights'] = new_weights
-                    bees[s]['buy_threshold'] = new_buy_threshold
-                    bees[s]['sell_threshold'] = new_sell_threshold
-                    bees[s]['trials'] = 0  # Reset trial count
-                else:
-                    bees[s]['trials'] += 1  # Increase trial count
+            restarts += 1
 
-            # Onlooker bee phase
-            fitness_values = [fitness(bee['weights'], bee['buy_threshold'], bee['sell_threshold'], df_strategy, df_data, signal_columns)[0] for bee in bees]
-            total_fitness = sum(fitness_values)
-            probabilities = [fitness_value / total_fitness for fitness_value in fitness_values]
-
-            for s in range(CS):
-                if random.random() < probabilities[s]:
-                    # Generate new solution based on selected bee
-                    new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
-                    new_buy_threshold = random.uniform(x_range[0], x_range[1])
-                    new_sell_threshold = random.uniform(x_range[0], x_range[1])
-                    
-                    # Calculate fitness of new solution
-                    new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
-
-                    # Greedy selection
-                    if new_fitness > fitness(bees[s]['weights'], bees[s]['buy_threshold'], bees[s]['sell_threshold'], df_strategy, df_data, signal_columns)[0]:
-                        bees[s]['weights'] = new_weights
-                        bees[s]['buy_threshold'] = new_buy_threshold
-                        bees[s]['sell_threshold'] = new_sell_threshold
-                        bees[s]['trials'] = 0  # Reset trial count
-                    else:
-                        bees[s]['trials'] += 1  # Increase trial count
-
-            # Scout bee phase
-            for s in range(CS):
-                if bees[s]['trials'] > limit:
-                    # Reinitialize food source
-                    bees[s] = {
-                        'weights': [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
-                        'buy_threshold': random.uniform(x_range[0], x_range[1]),
-                        'sell_threshold': random.uniform(x_range[0], x_range[1]),
-                        'trials': 0
-                    }
-
-            # Update best solution found
-            for bee in bees:
-                current_fitness, current_trades_df = fitness(bee['weights'], bee['buy_threshold'], bee['sell_threshold'], df_strategy, df_data, signal_columns)
-                if current_fitness > best_fitness:
-                    best_bee = bee
-                    best_fitness = current_fitness
-                    best_trades_df = current_trades_df
-                    console.print(f"[bold green]Cycle {cycle}:[/bold green] Best Fitness: {best_fitness:.4f}")
-            
-            # Store best fitness of this cycle
-            fitness_history.append(best_fitness)
-
-            # Update the progress bar
-            progress.update(task, advance=1)
-            cycle += 1
-
-    plot_abc_algorithm_convergence(fitness_history, MCN)
-
-    return best_bee, best_fitness, best_trades_df
+        self.console.print("[bold red]Algorithm failed to find a solution after 1000 restarts.[/bold red]")
+        return None, None, None

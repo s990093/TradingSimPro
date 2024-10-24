@@ -3,7 +3,7 @@ import pandas as pd
 import yfinance as yf
 
 
-def plot_trades(df, trades_df, total_return, initial_capital, market_df):
+def plot_trades(algorithm, df, trades_df, total_return, initial_capital, market_df):
     plt.figure(figsize=(10, 7))
 
     # Forward fill to handle missing data
@@ -22,8 +22,8 @@ def plot_trades(df, trades_df, total_return, initial_capital, market_df):
     plot_trade_actions(trades_df, market_df)
 
     plt.tight_layout()
-    plt.savefig("res/trading_results_vs_market.png", format='png')
-    plt.show()
+    plt.savefig(f"res/{algorithm}_trading_results_vs_market.png", format='png')
+    plt.close()  
 
 def plot_price_and_signals(df, trades_df, total_return):
     plt.subplot(3, 1, 1)
