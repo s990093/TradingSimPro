@@ -8,10 +8,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 
 from ENV import Environment
 from utility.calculate_returns import calculate_returns
-max_workers = os.cpu_count()
 
+
+max_workers = os.cpu_count()
 # 设置批次大小
-BATCH_SIZE = 100000  # 根据需要调整批次大小
+BATCH_SIZE = 30000  # 根据需要调整批次大小
 
 def process_combination(combination, df_strategy, df_data):
     # Initialize combined positions to zeros

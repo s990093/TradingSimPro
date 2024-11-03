@@ -4,6 +4,7 @@ import yfinance as yf
 
 
 def plot_trades(algorithm, df, trades_df, total_return, initial_capital, market_df):
+    
     plt.figure(figsize=(10, 7))
 
     # Forward fill to handle missing data

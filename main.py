@@ -1,9 +1,10 @@
 import yfinance as yf
 from datetime import datetime
 import click
+from utility.helper.stock_data_cache import StockDataCache
 from utility.qlearning import ABCQlearningAlgorithmManager
 from utility.abc_algorithm import ABCAlgorithmManager
-from utility.reward_func import dqn_algorithm
+# from utility.reward_func import dqn_algorithm
 from utility.stock_plotter import plot_trades
 from strategies import *
 from ENV import Environment
@@ -20,17 +21,14 @@ def main(algorithm):
     Main function that applies the selected algorithm (ABC or DQN) to the stock data.
     """
     os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
-
     
     print(f"Selected algorithm: {algorithm.upper()}")
-
-    # Download stock data for the target stock and benchmark (e.g., S&P 500)
-    df_data = yf.download(Environment.target_stock, start=Environment.start_date, end=Environment.end_date)
     
-    df_data = df_data.astype('float')
+    df_data = StockDataCache(Environment.target_stock, Environment.start_date, Environment.end_date).get_data()
+    benchmark_df = StockDataCache('^GSPC', Environment.start_date, Environment.end_date).get_data()
+
 
     initial_price = df_data.iloc[0]['Open']
-    benchmark_df = yf.download('^GSPC', start=Environment.start_date, end=Environment.end_date)
 
     # Create and apply all strategies to the data
     strategy_manager = create_strategies()

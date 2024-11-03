@@ -1,4 +1,5 @@
 import yfinance as yf
+from utility.helper.stock_data_cache import StockDataCache
 from utility.print import display_best_strategies
 from utility.best_strategies import select_best_strategies
 from strategies import *
@@ -10,11 +11,11 @@ install()
 
 def main():
     
-    df_data = yf.download(Environment.target_stock, start=Environment.start_date, end=Environment.end_date)
+    df_data = StockDataCache(Environment.target_stock, Environment.start_date, Environment.end_date).get_data()
+
     
     initial_price = df_data.iloc[0]['Open'] 
 
-    df_data = df_data.astype('float')
 
 
     strategy_manager = create_strategies()

@@ -3,7 +3,6 @@ import json
 import matplotlib.pyplot as plt
 from rich.console import Console
 
-from utility.calculate_returns import calculate_trading_signals
 from utility.calculate_returns_jit import fitness
 
 __all__ = ['fitness', 'AlgorithmManager']

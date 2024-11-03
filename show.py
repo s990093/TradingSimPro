@@ -1,40 +1,143 @@
-import vectorbt as vbt
+import numba
 import numpy as np
+import pandas as pd
+import random
+import matplotlib.pyplot as plt
+from random import choice
+from rich import print
+from rich.table import Table
+from rich.console import Console
 
-# 下载 Apple 股票数据
-symbols = ['AAPL']
-price = vbt.YFData.download(symbols, missing_index='drop').get('Close')
+from utility.print import display_results
+from utility.helper.tool import trades_to_dataframe
+from utility.stock_plotter import plot_trades
+from utility.calculate_returns_jit import fitness
+from utility.helper.stock_data_cache import StockDataCache
+from strategies import create_strategies
+from ENV import Environment
 
-# 定义均线组合
-windows = np.arange(2, 101)
-fast_ma, slow_ma = vbt.MA.run_combs(price, window=windows, r=2, short_names=['fast', 'slow'])
 
-# 均线策略的买卖信号
-entries_ma = fast_ma.ma_crossed_above(slow_ma)
-exits_ma = fast_ma.ma_crossed_below(slow_ma)
+best_trades_df_read = pd.read_pickle('best_trades.pkl')
+df_data = StockDataCache(Environment.target_stock, Environment.start_date, Environment.end_date).get_data()
 
-# 添加 RSI 策略 (14 天)
-rsi = vbt.RSI.run(price, window=14)
-entries_rsi = rsi.rsi_crossed_below(30)  # RSI 低于 30 时买入
-exits_rsi = rsi.rsi_crossed_above(70)  # RSI 高于 70 时卖出
+print(best_trades_df_read)
 
-# 组合信号：可以结合均线策略和 RSI 策略
-entries_combined = entries_ma & entries_rsi  # 当两个条件都满足时买入
-exits_combined = exits_ma & exits_rsi  # 当两个条件都满足时卖出
+def calculate_returns(buy_trades, sell_trades, df, account_balance=10000, risk_per_trade=0.01, stop_loss_pct=0.02, take_profit_pct=0.05):
+    total_return = 0.0
+    trades = []
+    holding_times = []
+    cumulative_returns = [account_balance]
+    dates = [df.index[0]]
 
-# 创建投资组合
-pf_kwargs = dict(size=np.inf, fees=0.001, freq='1D')
-pf = vbt.Portfolio.from_signals(price, entries_combined, exits_combined, **pf_kwargs)
+    current_balance = account_balance
 
-# 绘制回测结果的总收益热图
-fig = pf.total_return().vbt.heatmap(
-    x_level='fast_window', y_level='slow_window', slider_level='symbol', symmetric=True,
-    trace_kwargs=dict(colorbar=dict(title='Total return', tickformat='%'))
-)
-fig.show()
+    for buy_index, buy_row in buy_trades.iterrows():
+        buy_price = buy_row['Price']
+        buy_date = buy_row['Date']
+        
+        # 計算止損價格和獲利價格
+        stop_loss_price = buy_price * (1 - stop_loss_pct)
+        take_profit_price = buy_price * (1 + take_profit_pct)
+        
+        # 計算每次交易的風險和持倉數量
+        max_risk = current_balance * risk_per_trade
+        risk_per_share = abs(buy_price - stop_loss_price)
+        
+        if risk_per_share > 0:  # 確保風險計算合理
+            position_size = int(max_risk / risk_per_share)  # 計算可以購買的股票數量
+            position_size = min(position_size, current_balance // buy_price)  # 確保不超過可用餘額
 
-# 针对特定窗口组合的结果 (例如 10 天和 20 天均线)
-pf[(10, 20, 'AAPL')].plot().show()
+            for sell_index, sell_row in sell_trades.iterrows():
+                sell_price = sell_row['Price']
+                sell_date = sell_row['Date']
 
-# 输出统计数据
-print(pf.stats())
+                if sell_date > buy_date:
+                    df_slice = df[(df.index > buy_date) & (df.index <= sell_date)]
+
+                    for day_date, day_row in df_slice.iterrows():
+                        day_price = day_row['Close']
+                        
+                        # 檢查是否觸發止損
+                        if day_price <= stop_loss_price:
+                            profit = (stop_loss_price - buy_price) * position_size
+                            holding_time = (day_date - buy_date).days
+                            holding_times.append(holding_time)
+                            current_balance += profit
+                            total_return += profit
+                            cumulative_returns.append(current_balance)
+                            dates.append(day_date)
+                            trades.append({
+                                'Buy Date': buy_date,
+                                'Sell Date': day_date,
+                                'Buy Price': buy_price,
+                                'Sell Price': stop_loss_price,
+                                'Profit': profit,
+                                'Position Size': position_size
+                            })
+                            break
+                        # 檢查是否觸發獲利
+                        elif day_price >= take_profit_price:
+                            profit = (take_profit_price - buy_price) * position_size
+                            holding_time = (day_date - buy_date).days
+                            holding_times.append(holding_time)
+                            current_balance += profit
+                            total_return += profit
+                            cumulative_returns.append(current_balance)
+                            dates.append(day_date)
+                            trades.append({
+                                'Buy Date': buy_date,
+                                'Sell Date': day_date,
+                                'Buy Price': buy_price,
+                                'Sell Price': take_profit_price,
+                                'Profit': profit,
+                                'Position Size': position_size
+                            })
+                            break
+                    break
+
+    avg_holding_time = sum(holding_times) / len(holding_times) if holding_times else 0
+    max_holding_time = max(holding_times) if holding_times else 0
+
+    return total_return, trades, avg_holding_time, max_holding_time, current_balance, dates, cumulative_returns
+
+
+buy_trades = best_trades_df_read[best_trades_df_read['Action'] == 'Buy']
+stop_trades = best_trades_df_read[best_trades_df_read['Action'] == 'Stop']
+sell_trades = best_trades_df_read[best_trades_df_read['Action'] == 'Sell']  # 如果有 'Sell' 行为
+
+
+
+# Display results with rich
+def display_results(total_return, trades, avg_holding_time, max_holding_time, initial_balance=10000):
+    console = Console()
+    percentage_return = (total_return / initial_balance) * 100
+
+    # Summary Table
+   # Display results with rich
+    console.print(f"[bold]总收益:[/bold] ${total_return:.2f}")
+    console.print(f"[bold]收益百分比:[/bold] {percentage_return:.2f}%")
+    console.print(f"[bold]初始余额:[/bold] ${initial_balance:.2f}")
+    # Trade Details Table
+    table = Table(title="Trade Records")
+    table.add_column("Buy Date", justify="center")
+    table.add_column("Sell Date", justify="center")
+    table.add_column("Buy Price", justify="right")
+    table.add_column("Sell Price", justify="right")
+    table.add_column("Profit", justify="right")
+    table.add_column("Position Size", justify="right")
+
+    for trade in trades:
+        table.add_row(
+            trade['Buy Date'].strftime("%Y-%m-%d"),
+            trade['Sell Date'].strftime("%Y-%m-%d"),
+            f"{trade['Buy Price']:.2f}",
+            f"{trade['Sell Price']:.2f}",
+            f"{trade['Profit']:.2f}",
+            f"{trade['Position Size']}",
+        )
+
+    console.print(table)
+
+# Example usage
+total_return, trades, avg_holding_time, max_holding_time, current_balance, dates, cumulative_returns = calculate_returns(buy_trades, sell_trades, df_data)
+display_results(total_return, trades, avg_holding_time, max_holding_time)

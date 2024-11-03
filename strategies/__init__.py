@@ -4,21 +4,21 @@ from ENV import Environment
 from strategies.strategy_manager import StrategyManager
 from .buy_and_hold_strategy import BuyAndHoldStrategy
 from .channel_breakout_strategy import ChannelBreakoutStrategy
-# from .strategy_manager import StrategyManager
-# from .momentum_strategy import MomentumStrategy
-# from .stochastic_oscillator import StochasticOscillatorStrategy
-# from .bollinger_band_strategy import BollingerBandsStrategy
-# from .macd_strategy import MACDStrategy
-# from .moving_average_strategy import MovingAverageStrategy
-# from .rsi_strategy import RSIStrategy
+from .strategy_manager import StrategyManager
+from .momentum_strategy import MomentumStrategy
+from .stochastic_oscillator import StochasticOscillatorStrategy
+from .bollinger_band_strategy import BollingerBandsStrategy
+from .macd_strategy import MACDStrategy
+from .moving_average_strategy import MovingAverageStrategy
+from .rsi_strategy import RSIStrategy
 
 # 2 round
-# from .breakout_strategy import BreakoutStrategy
-# from .mean_reversion import MeanReversionStrategy
-# from .stop_loss_strategy import StopLossStrategy
-# from .trend_following import TrendFollowingStrategy
-# from .turtle_trading import TurtleTradingStrategy
-# from .volume_price_strategy import VolumePriceStrategy
+from .breakout_strategy import BreakoutStrategy
+from .mean_reversion import MeanReversionStrategy
+from .stop_loss_strategy import StopLossStrategy
+from .trend_following import TrendFollowingStrategy
+from .turtle_trading import TurtleTradingStrategy
+from .volume_price_strategy import VolumePriceStrategy
 
 
 from .big.reference_strategy import MultiReferenceStrategy
@@ -38,25 +38,27 @@ strategy_mapping['ChannelBreakoutStrategy'] = ChannelBreakoutStrategy
 
 
 
-# strategy_mapping = {
-#     "MovingAverageStrategy": MovingAverageStrategy,
-#     "BollingerBandsStrategy": BollingerBandsStrategy,
-#     "RSIStrategy": RSIStrategy,
-#     "MACDStrategy": MACDStrategy,
-#     "ChannelBreakoutStrategy": ChannelBreakoutStrategy,
-#     "BuyAndHoldStrategy": BuyAndHoldStrategy,
-#     "MultiReferenceStrategy": MultiReferenceStrategy,
-#     "MomentumStrategy": MomentumStrategy,
-#     "StochasticOscillatorStrategy": StochasticOscillatorStrategy,
-#     "BreakoutStrategy": BreakoutStrategy,
-#     "MeanReversionStrategy": MeanReversionStrategy,
-#     "StopLossStrategy": StopLossStrategy,
-#     "TrendFollowingStrategy": TrendFollowingStrategy,
-#     "TurtleTradingStrategy": TurtleTradingStrategy,
-#     "VolumePriceStrategy": VolumePriceStrategy,
-# }
+_strategy_mapping = {
+    "MovingAverageStrategy": MovingAverageStrategy,
+    # "BollingerBandsStrategy": BollingerBandsStrategy,
+    "RSIStrategy": RSIStrategy,
+    "MACDStrategy": MACDStrategy,
+    "ChannelBreakoutStrategy": ChannelBreakoutStrategy,
+    "BuyAndHoldStrategy": BuyAndHoldStrategy,
+    "MultiReferenceStrategy": MultiReferenceStrategy,
+    "MomentumStrategy": MomentumStrategy,
+    "StochasticOscillatorStrategy": StochasticOscillatorStrategy,
+    "BreakoutStrategy": BreakoutStrategy,
+    "MeanReversionStrategy": MeanReversionStrategy,
+    "StopLossStrategy": StopLossStrategy,
+    "TrendFollowingStrategy": TrendFollowingStrategy,
+    "TurtleTradingStrategy": TurtleTradingStrategy,
+    "VolumePriceStrategy": VolumePriceStrategy,
+}
 
-def  create_strategies():
+# strategy_mapping = {**_strategy_mapping}
+
+def create_strategies():
     strategy_config = Environment.strategy_config
     strategies = []
 

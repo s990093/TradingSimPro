@@ -34,7 +34,6 @@ def calculate_returns(buy_signals, sell_signals, df, stop_loss_pct=0.02, take_pr
                     'Action': 'Stop',
                     'Price': sell_price,
                     'Triggered Price': current_price,
-                    'Reason': f'Stop loss triggered at {current_price}'
                 })
 
             # Check for take-profit or normal sell signal
@@ -47,7 +46,6 @@ def calculate_returns(buy_signals, sell_signals, df, stop_loss_pct=0.02, take_pr
                     'Date': df.index[i],
                     'Action': 'Sell',
                     'Price': sell_price,
-                    'Reason': 'Sell signal or take profit triggered'
                 })
 
     # Uncomment the following block if you want to handle end-of-data sell
@@ -64,19 +62,10 @@ def calculate_returns(buy_signals, sell_signals, df, stop_loss_pct=0.02, take_pr
 
 
 
-def calculate_trading_signals(df_strategy, weights, buy_threshold, sell_threshold, signal_columns, df_data):
-  
+def fitness(weights: np.ndarray, buy_threshold: float, sell_threshold: float, df_strategy: pd.DataFrame, df_data: pd.DataFrame, signal_columns: list):
     if len(weights) != len(signal_columns):
             raise ValueError("The number of weights must match the number of signals.")
-        
-    # new_weight =  adjust_weights(weights, 
-    #                Environment.adjust_weights.get("signal_name"), 
-    #                Environment.adjust_weights.get("adjustment_factor"), 
-    #                signal_columns
-    #             )
     
-    # weights = new_weight
-    # Create the weighted signals array dynamically
     weighted_signals = np.array([
         weights[i] * df_strategy[signal] for i, signal in enumerate(signal_columns) if signal in df_strategy.columns
     ])

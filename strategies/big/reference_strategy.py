@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 import yfinance as yf
+from utility.helper.stock_data_cache import StockDataCache
 from strategies.base_strategy import BaseStrategy
 
 class ReferenceStrategy:
@@ -12,7 +13,8 @@ class ReferenceStrategy:
         self.stock_name = symbol.replace('^', '').replace('.', '_')  # Remove or replace problematic characters
         
         # Download market data for the given symbol
-        self.data = yf.download(symbol, start=start_date, end=end_date)
+        self.data = StockDataCache(symbol, start_date, end_date).get_data()
+        
         
         self.ma_window = ma_window
         self.rsi_period = rsi_period

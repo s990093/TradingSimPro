@@ -33,7 +33,7 @@ def calculate_returns(buy_signals: np.ndarray, sell_signals: np.ndarray, close_p
                 holding = False
                 trades[trade_count, 0] = i  # Trade index
                 trades[trade_count, 1] = 0  # Action (0 for Stop)
-                trades[trade_count, 2] = sell_price  # Price
+                trades[trade_count, 2] = sell_price  # Price 
                 trades[trade_count, 3] = current_price  # Triggered Price
                 trade_count += 1
 
@@ -56,6 +56,7 @@ def calculate_returns(buy_signals: np.ndarray, sell_signals: np.ndarray, close_p
 # Numba optimized function for calculating trading signals
 @njit
 def calculate_trading_signals(df_strategy_signals: np.ndarray, weights: np.ndarray, buy_threshold: float, sell_threshold: float) -> Tuple[np.ndarray, np.ndarray]:
+    
     if len(weights) != df_strategy_signals.shape[1]:
         raise ValueError("The number of weights must match the number of signals.")
 
@@ -82,25 +83,29 @@ def calculate_trading_signals(df_strategy_signals: np.ndarray, weights: np.ndarr
     return buy_signals, sell_signals
 
 # Main fitness function that orchestrates data handling and computation
-def fitness(weights: np.ndarray, buy_threshold: float, sell_threshold: float, df_strategy: pd.DataFrame, df_data: pd.DataFrame, signal_columns: list) -> Tuple[float, np.ndarray]:
-    # Ensure inputs are in the correct format
-    if not isinstance(weights, np.ndarray):
-        weights = np.array(weights, dtype=np.float64)
+# @njit
+# def fitness(weights: np.ndarray, buy_threshold: float, sell_threshold: float, df_strategy: pd.DataFrame, df_data: pd.DataFrame, signal_columns: list) -> Tuple[float, np.ndarray]:
+#     # Ensure inputs are in the correct format
+#     if not isinstance(weights, np.ndarray):
+#         weights = np.array(weights, dtype=np.float64)
 
-    # Extract signals from DataFrame and convert to NumPy array
-    df_strategy_signals = df_strategy[signal_columns].values.astype(np.float64)  # Convert to float64 for Numba
-    close_prices = df_data['Close'].values.astype(np.float64)  # Ensure prices are float64
+#     # Extract signals from DataFrame and convert to NumPy array
+#     df_strategy_signals = df_strategy[signal_columns].values.astype(np.float64)  # Convert to float64 for Numba
+#     close_prices = df_data['Close'].values.astype(np.float64)  # Ensure prices are float64
+    
 
+#     # Call Numba optimized functions
+#     buy_signals, sell_signals = calculate_trading_signals(df_strategy_signals, weights, buy_threshold, sell_threshold)
+#     total_return, trades_np = calculate_returns(buy_signals, sell_signals, close_prices)
+
+#     return total_return, trades_np
+
+
+
+@njit
+def fitness(weights: np.ndarray, buy_threshold: float, sell_threshold: float, df_strategy_signals: np.ndarray, close_prices: np.ndarray, signal_columns: list) -> Tuple[float, np.ndarray]:
     # Call Numba optimized functions
     buy_signals, sell_signals = calculate_trading_signals(df_strategy_signals, weights, buy_threshold, sell_threshold)
     total_return, trades_np = calculate_returns(buy_signals, sell_signals, close_prices)
 
     return total_return, trades_np
-
-# Example usage (replace with actual DataFrame and parameters)
-# df_strategy = pd.DataFrame(...)  # Your strategy DataFrame
-# df_data = pd.DataFrame(...)       # Your price DataFrame
-# weights = np.array([...])         # Your weights
-# buy_threshold = 0.5               # Your buy threshold
-# sell_threshold = 0.5              # Your sell threshold
-# total_return, trades_np = fitness(weights, buy_threshold, sell_threshold, df_strategy, df_data, signal_columns)

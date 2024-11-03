@@ -8,6 +8,7 @@ from numba import njit
 
 __all__ = ['AlgorithmManager']
 
+
 def calculate_fitness(bee, df_strategy, df_data, signal_columns):
     """Calculate the fitness for a given bee."""
     return fitness(bee['weights'], bee['buy_threshold'], bee['sell_threshold'], df_strategy, df_data, signal_columns)
@@ -18,10 +19,14 @@ def chunks(lst, n):
     for i in range(0, len(lst), n):
         yield lst[i:i + n]
 
+
+
 class ABCAlgorithmManager(AlgorithmManager):
     def __init__(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns,
-                 restart_threshold=200, max_restarts=1000, num_processes=mp.cpu_count()):
+                 restart_threshold=200, max_restarts=1000, num_processes=mp.cpu_count(),
+                 local_optima_limit=50, first_cycle_limit=3, fitness_stagnation_threshold=0.01):
         super().__init__(self.__class__.__name__)
+        
         self.df_strategy = df_strategy
         self.df_data = df_data
         self.CS = CS
@@ -31,19 +36,21 @@ class ABCAlgorithmManager(AlgorithmManager):
         self.x_range = x_range
         self.signal_columns = signal_columns
         self.num_processes = num_processes
-        
         self.restart_threshold = restart_threshold
         self.max_restarts = max_restarts
+        
+        
+        self.first_cycle_limit = first_cycle_limit  # 可以控制追蹤最佳適應度的前幾個週期
+        self.fitness_stagnation_threshold = fitness_stagnation_threshold  # 可以控制適應度停滯的判斷閾值
+        self.local_optima_limit = local_optima_limit  # 可以控制陷入局部最優解的最大週期數
 
     
-    def run_algorithm(self,):
+    def run_algorithm(self):
         self.abc_algorithm(self.df_strategy, self.df_data, self.CS, self.MCN, self.limit, self.weights_range, self.x_range, self.signal_columns)
-        
         
     @njit
     def calculate_new_thresholds(x_range):
         return (random.uniform(x_range[0], x_range[1]), random.uniform(x_range[0], x_range[1]))
-
 
     def abc_algorithm(self, df_strategy, df_data, CS, MCN, limit, weights_range, x_range, signal_columns):
         def initialize_bees():
@@ -51,24 +58,23 @@ class ABCAlgorithmManager(AlgorithmManager):
                 'weights': [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))],
                 'buy_threshold': random.uniform(x_range[0], x_range[1]),
                 'sell_threshold': random.uniform(x_range[0], x_range[1]),
-                'trials': 0  # Initialize trial counts
+                'trials': 0
             } for _ in range(CS)]
 
         restart_threshold = self.restart_threshold
-        max_restarts = self.restart_threshold
+        max_restarts = self.max_restarts
         restarts = 0
-        
+
         while restarts < max_restarts:
-            # Initialize variables
             bees = initialize_bees()
             best_bee = None
             best_fitness = -float('inf')
-            fitness_history = []  # To store the best fitness values over iterations
+            fitness_history = []
             best_trades_df = None
             cycle = 1
             first_three_best_fitness = []
+            stuck_at_optimum = 0
 
-            # Define chunk size based on CPU count and CS (colony size)
             chunk_size = max(1, CS // mp.cpu_count())
 
             with Progress() as progress:
@@ -79,18 +85,20 @@ class ABCAlgorithmManager(AlgorithmManager):
                     with Pool(processes=mp.cpu_count()) as pool:
                         fitness_results = pool.starmap(
                             calculate_fitness,
-                            [(bee, df_strategy, df_data, signal_columns) for batch in chunks(bees, chunk_size) for bee in batch]
+                            [(bee, df_strategy, df_data, signal_columns) for bee in bees]
                         )
 
-                    # Process the results after the parallel computation
                     for s in range(CS):
+                        # Extract fitness value from tuple (assuming tuple is (fitness_value, trades_df))
+                        current_fitness, current_trades_df = fitness_results[s]
+
                         new_weights = [random.uniform(weights_range[0], weights_range[1]) for _ in range(len(signal_columns))]
-                        new_buy_threshold = random.uniform(x_range[0], x_range[1]) 
+                        new_buy_threshold = random.uniform(x_range[0], x_range[1])
                         new_sell_threshold = random.uniform(x_range[0], x_range[1])
 
                         new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
 
-                        if new_fitness > fitness_results[s][0]:
+                        if new_fitness > current_fitness:
                             bees[s]['weights'] = new_weights
                             bees[s]['buy_threshold'] = new_buy_threshold
                             bees[s]['sell_threshold'] = new_sell_threshold
@@ -110,7 +118,7 @@ class ABCAlgorithmManager(AlgorithmManager):
 
                             new_fitness, new_trades_df = fitness(new_weights, new_buy_threshold, new_sell_threshold, df_strategy, df_data, signal_columns)
 
-                            if new_fitness > fitness_results[s][0]:
+                            if new_fitness > current_fitness:
                                 bees[s]['weights'] = new_weights
                                 bees[s]['buy_threshold'] = new_buy_threshold
                                 bees[s]['sell_threshold'] = new_sell_threshold
@@ -143,19 +151,19 @@ class ABCAlgorithmManager(AlgorithmManager):
                     if cycle <= 3:
                         first_three_best_fitness.append(best_fitness)
 
-                    # Check if best fitness exceeded 150 within the first three cycles
-                    if cycle == 3 and max(first_three_best_fitness) < restart_threshold:
-                        self.console.print(f"[bold red]Restarting due to low fitness in first three cycles ({max(first_three_best_fitness)} < {restart_threshold})[/bold red]")
-                        break 
+                    # Restart if fitness stagnates
+                    if best_fitness - fitness_history[max(0, cycle - self.local_optima_limit)] < 0.01:
+                        stuck_at_optimum += 1
+                    else:
+                        stuck_at_optimum = 0
 
-                    # Update the progress bar
+                    if stuck_at_optimum > self.local_optima_limit:
+                        self.console.print(f"[bold red]Restarting due to being stuck at local optimum for {self.local_optima_limit} cycles[/bold red]")
+                        break
+
                     progress.update(task, advance=1)
                     cycle += 1
 
-                    if cycle > MCN:
-                        break
-
-            # If fitness exceeded 150 in the first three cycles, return the result
             if max(first_three_best_fitness) >= restart_threshold:
                 self.best_bee = best_bee
                 self.best_fitness = best_fitness
@@ -166,4 +174,4 @@ class ABCAlgorithmManager(AlgorithmManager):
             restarts += 1
 
         self.console.print("[bold red]Algorithm failed to find a solution after 1000 restarts.[/bold red]")
-        return None, None, None      
+        return None, None, None
