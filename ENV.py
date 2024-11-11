@@ -11,9 +11,9 @@ class Environment(object):
     MAX_PROCESS_WORKERS = 30
     restart_threshold = 130
     max_restarts = 1000
-    target_stock = "AAPL"
-    start_date = datetime(2018, 4, 1)
-    end_date = datetime(2024, 7, 19)
+    target_stock = "2498.TW"
+    start_date = datetime(2013, 1, 1)
+    end_date = datetime(2022, 12, 31)
     
     CS=60          
     MCN=3

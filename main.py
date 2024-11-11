@@ -1,115 +1,118 @@
-import yfinance as yf
-from datetime import datetime
-import click
 from utility.helper.stock_data_cache import StockDataCache
-from utility.qlearning import ABCQlearningAlgorithmManager
-from utility.abc_algorithm import ABCAlgorithmManager
-# from utility.reward_func import dqn_algorithm
-from utility.stock_plotter import plot_trades
-from strategies import *
+from models.gpt_trader import GPTTrader
 from ENV import Environment
-from utility.print import display_results
-import traceback
-import os
+import concurrent.futures
+import pandas as pd
+from typing import List, Tuple
+import threading
+from rich.progress import Progress, TextColumn, BarColumn, TaskProgressColumn, TimeRemainingColumn
 
-
-
-@click.command()
-@click.option('--algorithm', type=click.Choice(['abc', 'dqn', 'q'], case_sensitive=False), default='abc', help='Choose the algorithm to run.')
-def main(algorithm):
-    """
-    Main function that applies the selected algorithm (ABC or DQN) to the stock data.
-    """
-    os.environ['TF_ENABLE_ONEDNN_OPTS'] = '0'
+def process_chunk(chunk_data: pd.DataFrame, start_idx: int, window_size: int) -> List[float]:
+    gpt_trader = GPTTrader()
+    signals = []
     
-    print(f"Selected algorithm: {algorithm.upper()}")
+    for i in range(len(chunk_data)):
+        if i + start_idx < window_size:
+            signals.append(0)
+        else:
+            window_data = chunk_data.iloc[max(0, i-window_size):i+1]
+            signal = gpt_trader.generate_trading_signal(window_data)
+            signals.append(signal)
     
-    df_data = StockDataCache(Environment.target_stock, Environment.start_date, Environment.end_date).get_data()
-    benchmark_df = StockDataCache('^GSPC', Environment.start_date, Environment.end_date).get_data()
+    return signals
 
-
-    initial_price = df_data.iloc[0]['Open']
-
-    # Create and apply all strategies to the data
-    strategy_manager = create_strategies()
-    df_strategy = strategy_manager.apply_all_strategies(df_data)
-    signal_columns = strategy_manager.get_signal_columns()
-
-    # Display configuration
-    Environment.display_config(signal_columns)
-
-    # Start timer
-    start_time = datetime.now()
-
-    # Execute selected algorithm
-    if algorithm == 'abc':
-        print("Running ABC Algorithm...")
-        
-        abc = ABCAlgorithmManager(
-            df_strategy,
-            df_data,
-            Environment.CS,
-            Environment.MCN,
-            Environment.limit,
-            Environment.weights_range,
-            Environment.x_range,
-            signal_columns,
-            Environment.restart_threshold,
-            Environment.max_restarts
-        )
-        
-        abc.run_algorithm()
-        abc.store_results_pickle()
-        best_bee, best_fitness, best_trades_df = abc.get_res()
-        
-    elif algorithm == 'q':            
-        abc_q = ABCQlearningAlgorithmManager(
-                df_strategy,
-                df_data,
-                Environment.CS,
-                Environment.MCN,
-                Environment.limit,
-                Environment.weights_range,
-                Environment.x_range,
-                signal_columns
-            )
-        abc_q.run_algorithm()
-        
-        abc_q.store_results_pickle()
-        
-        best_bee, best_fitness, best_trades_df = abc_q.get_res()
-        
-    # elif algorithm == 'dqn':
-    #     print("Running DQN Algorithm...")
-    #     best_bee, best_fitness, best_trades_df = dqn_algorithm(
-    #         df_strategy,
-    #         df_data,
-    #         Environment.MCN,
-    #         Environment.weights_range,
-    #         Environment.x_range,
-    #         signal_columns
-    #     )
-    else:
-        raise ValueError("Unknown algorithm selected.")
-
-    # End timer
-    end_time = datetime.now()
-    duration = end_time - start_time
-
-    # Calculate profit ratio
-    profit_ratio = (best_fitness + initial_price / best_fitness)
-
-    # Display results
-    display_results(algorithm, best_bee, best_fitness, duration, profit_ratio, best_trades_df)
-
-    # Plot the trades
-    plot_trades(algorithm, df_data, best_trades_df, best_fitness, 1000, benchmark_df)
+def generate_signals_parallel(df_data: pd.DataFrame, window_size: int, num_threads: int = 4) -> List[float]:
+    chunk_size = len(df_data) // num_threads
+    chunks = []
     
+    for i in range(0, len(df_data), chunk_size):
+        chunk = df_data.iloc[i:i + chunk_size]
+        chunks.append((chunk, i))
     
+    all_signals = []
+    with Progress(
+        TextColumn("[progress.description]{task.description}"),
+        BarColumn(),
+        TaskProgressColumn(),
+        TimeRemainingColumn()
+    ) as progress:
+        task = progress.add_task("[cyan]生成交易信號...", total=len(chunks))
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=num_threads) as executor:
+            future_to_chunk = {
+                executor.submit(process_chunk, chunk, start_idx, window_size): (chunk, start_idx)
+                for chunk, start_idx in chunks
+            }
+            
+            for future in concurrent.futures.as_completed(future_to_chunk):
+                chunk_signals = future.result()
+                all_signals.extend(chunk_signals)
+                progress.advance(task)
+    
+    return all_signals[:len(df_data)]
+
+def analyze_trades(df_data: pd.DataFrame) -> List[Tuple[str, float, pd.Timestamp]]:
+    position = 0
+    trades = []
+    
+    for i in range(len(df_data)):
+        signal = df_data['gpt_signal'].iloc[i]
+        price = df_data['Close'].iloc[i]
+        date = df_data.index[i]
+        
+        if signal > 0.5 and position <= 0:
+            position = 1
+            trades.append(('BUY', price, date))
+        elif signal < -0.5 and position >= 0:
+            position = -1
+            trades.append(('SELL', price, date))
+    
+    return trades
+
+def calculate_returns(trades: List[Tuple[str, float, pd.Timestamp]]) -> float:
+    if len(trades) < 2:
+        return 0.0
+        
+    total_return = 1.0
+    for i in range(0, len(trades)-1, 2):
+        if trades[i][0] == 'BUY':
+            buy_price = trades[i][1]
+            sell_price = trades[i+1][1]
+            trade_return = (sell_price - buy_price) / buy_price
+            total_return *= (1 + trade_return)
+    
+    return total_return - 1
+
+def main():
+    # 獲取股票數據
+    df_data = StockDataCache(Environment.target_stock, 
+                            Environment.start_date, 
+                            Environment.end_date).get_data()
+    
+    window_size = 8
+    num_threads = 10  # 可以根據CPU核心數調整
+    
+    print("開始生成交易信號...")
+    signals = generate_signals_parallel(df_data, window_size, num_threads)
+    
+    # 將信號添加到數據框中
+    df_data['gpt_signal'] = signals
+    
+    # 分析交易
+    trades = analyze_trades(df_data)
+    
+    # 輸出交易結果
+    print("\n交易記錄:")
+    for trade in trades:
+        print(f"{trade[0]} at price {trade[1]:.2f} on {trade[2].strftime('%Y-%m-%d')}")
+    
+    # 計算並顯示收益率
+    total_return = calculate_returns(trades)
+    print(f"\n總收益率: {total_return*100:.2f}%")
+    
+    # 保存結果
+    df_data.to_csv('trading_results.csv')
+    print("\n結果已保存到 trading_results.csv")
 
 if __name__ == "__main__":
-    try:
-        main()
-    except Exception as e:
-        print("An error occurred:")
-        traceback.print_exc()
+    main() 
