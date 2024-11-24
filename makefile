@@ -1,11 +1,15 @@
-abc:
-	python main.py --algorithm abc
+# Makefile for running enhanced backtest
 
-show:
-	python main.py --algorithm abc
+.PHONY: all clean run
 
-log:
-	tensorboard --logdir=runs                                                                                                                                 
+# Default target
+all: run
 
+# Run the enhanced backtest
+run:
+	# python src/backtest_enhanced.py --loss_threshold  0.3404658937420397  --profit_threshold 0.0
 
-# $env:TF_ENABLE_ONEDNN_OPTS = "0"
+# Clean up any generated files
+clean:
+	rm -f res/ml_enhanced_trades.csv
+
